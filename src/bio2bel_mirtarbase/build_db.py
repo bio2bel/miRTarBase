@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
@@ -57,38 +59,46 @@ class Interaction(Base):
 
 
 def get_data():
-    """Gets miRTarBase Interactions table
+    """Gets miRTarBase Interactions table and exclude rows with NULL values
 
     :rtype: pandas.DataFrame
     """
-    return pd.read_excel(DATA_URL)
+    df = pd.read_excel(DATA_URL)
+    # find null rows
+    null_rows = pd.isnull(df).any(1).nonzero()[0]
+    return df.drop(null_rows)
 
 
 def populate(session):
+    """Populate database with the data from miRTarBase
+
+    :param session: session object from sqlalchemy
+    :return:
+    """
     df = get_data()
-    mirna_set = set()
-    target_set = set()
+    mirna_set = {}
+    target_set = {}
 
     # iterate through rows and construct tables from it
     for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in df.itertuples():
         # create new miRNA instance
         if not (mir_id in mirna_set):
             new_mirna = Mirna(mirtarbase_id=mir_id, mir_name=mirna, species=species_mirna)
-            mirna_set.add(mir_id)
+            mirna_set[mir_id] = new_mirna
 
         # create new target instance
         if not (entrez in target_set):
             new_target = Target(target_gene=target, entrez_id=int(entrez), species=species_target)
-            target_set.add(entrez)
+            target_set[entrez] = new_target
 
         # create new evidence instance
         new_evidence = Evidence(experiment=exp, support=sup_type, reference=int(pubmed))
 
         # create new interaction instance
-        new_interaction = Interaction(mirna=new_mirna, target=new_target, evidence=new_evidence)
+        new_interaction = Interaction(mirna=mirna_set[mir_id], target=target_set[entrez], evidence=new_evidence)
 
         # add instances to session
-        session.add_all([new_mirna, new_target, new_evidence, new_interaction])
+        session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
 
     session.commit()
 
@@ -103,3 +113,4 @@ if __name__ == '__main__':
     session = Session()
     # populate database
     populate(session)
+
