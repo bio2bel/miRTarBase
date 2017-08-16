@@ -82,12 +82,12 @@ def populate(session):
     # iterate through rows and construct tables from it
     for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in df.itertuples():
         # create new miRNA instance
-        if not (mir_id in mirna_set):
+        if mir_id not in mirna_set:
             new_mirna = Mirna(mirtarbase_id=mir_id, mir_name=mirna, species=species_mirna)
             mirna_set[mir_id] = new_mirna
 
         # create new target instance
-        if not (entrez in target_set):
+        if entrez not in target_set:
             new_target = Target(target_gene=target, entrez_id=int(entrez), species=species_target)
             target_set[entrez] = new_target
 
@@ -99,7 +99,6 @@ def populate(session):
 
         # add instances to session
         session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
-
     session.commit()
 
 
@@ -113,4 +112,3 @@ if __name__ == '__main__':
     session = Session()
     # populate database
     populate(session)
-
