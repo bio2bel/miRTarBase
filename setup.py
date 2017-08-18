@@ -30,7 +30,6 @@ def read(*parts):
 
 META_FILE = read(META_PATH)
 
-
 def find_meta(meta):
     """Extract __*meta*__ from META_FILE"""
     meta_match = re.search(
