@@ -12,7 +12,7 @@ INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
     'pybel_tools',
-    'xlrd' #needed to load the exel file with pandas
+    'xlrd'  # needed to load the exel file with pandas
 ]
 ENTRY_POINTS = {
     'bio2bel': [
@@ -22,6 +22,7 @@ ENTRY_POINTS = {
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
+
 def read(*parts):
     """Build an absolute path from *parts* and return the contents of the resulting file. Assume UTF-8 encoding."""
     with codecs.open(os.path.join(HERE, *parts), 'rb', 'utf-8') as f:
@@ -29,6 +30,7 @@ def read(*parts):
 
 
 META_FILE = read(META_PATH)
+
 
 def find_meta(meta):
     """Extract __*meta*__ from META_FILE"""
@@ -64,4 +66,4 @@ if __name__ == '__main__':
         package_dir={'': 'src'},
         install_requires=INSTALL_REQUIRES,
         entry_points=ENTRY_POINTS,
-)
+    )
