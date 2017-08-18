@@ -12,7 +12,7 @@ INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
     'pybel_tools',
-    'xlrd'  # needed to load the exel file with pandas
+    'xlrd',  # needed to load the exel file with pandas
 ]
 ENTRY_POINTS = {
     'bio2bel': [
