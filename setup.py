@@ -14,7 +14,7 @@ INSTALL_REQUIRES = [
 ]
 ENTRY_POINTS = {
     'bio2bel': [
-        'miRTarBase = bio2bel_mirtarbase',
+        'mirtarbase = bio2bel_mirtarbase',
     ],
     'console_scripts': [
         'bio2bel_mirtarbase = bio2bel_mirtarbase.cli:main',
