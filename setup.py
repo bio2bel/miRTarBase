@@ -10,15 +10,14 @@ PACKAGES = setuptools.find_packages(where='src')
 META_PATH = os.path.join('src', 'bio2bel_mirtarbase', '__init__.py')
 INSTALL_REQUIRES = [
     'pandas',
-    'sqlalchemy'
+    'sqlalchemy',
+    'pybel_tools',
+    'xlrd' #needed to load the exel file with pandas
 ]
 ENTRY_POINTS = {
     'bio2bel': [
         'mirtarbase = bio2bel_mirtarbase',
     ],
-    'console_scripts': [
-        'bio2bel_mirtarbase = bio2bel_mirtarbase.cli:main',
-    ]
 }
 
 HERE = os.path.abspath(os.path.dirname(__file__))

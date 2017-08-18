@@ -70,7 +70,7 @@ def get_data():
 
     :rtype: pandas.DataFrame
     """
-    df = pd.read_excel("test.xlsx")
+    df = pd.read_excel("/home/colin/SCAI/test.xlsx")
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
     return df.drop(null_rows)

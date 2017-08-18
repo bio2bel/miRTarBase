@@ -1,2 +1,4 @@
 pandas
 sqlalchemy
+pybel_tools
+xlrd
