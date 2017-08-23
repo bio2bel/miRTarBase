@@ -2,14 +2,16 @@
 
 import unittest
 
-from bio2bel_mirtarbase.enrich import enrich_proteins
 from pybel import BELGraph
 from pybel.constants import PROTEIN, MIRNA
+
+from bio2bel_mirtarbase.enrich import enrich_proteins
 
 c = PROTEIN, 'HGNC', 'HIF1A'
 t1 = MIRNA, 'MTB', 'MIRT000002'
 
 
+@unittest.skip
 class TestEnrich(unittest.TestCase):
     def test_enrich(self):
         g = BELGraph()
