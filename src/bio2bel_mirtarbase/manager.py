@@ -16,15 +16,20 @@ from .constants import (
 
 log = logging.getLogger(__name__)
 
-def get_data():
+
+def get_data(source=None):
     """Gets miRTarBase Interactions table and exclude rows with NULL values
 
     :rtype: pandas.DataFrame
     """
-    df = pd.read_excel("../../tests/test.xlsx")
+    if not source:
+        source = DATA_URL
+    df = pd.read_excel(source)
+
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
     return df.drop(null_rows)
+
 
 class Manager(object):
     def __init__(self, connection=None):
@@ -37,6 +42,7 @@ class Manager(object):
     @staticmethod
     def get_connection(connection=None):
         """Return the SQLAlchemy connection string if it is set
+
         :param connection: get the SQLAlchemy connection string
         :rtype: str
         """
@@ -62,16 +68,17 @@ class Manager(object):
         return MIRTARBASE_SQLITE_PATH
 
     def make_tables(self, check_first=True):
-        """ create tables """
+        """Create tables"""
         Base.metadata.create_all(self.engine, checkfirst=check_first)
 
-    def populate(self):
+    def populate(self, source=None):
         """Populate database with the data from miRTarBase
 
         :param session: session object from sqlalchemy
+        :param source: path or link to data source needed for get_data()
         :return:
         """
-        df = get_data()
+        df = get_data(source)
         mirna_set = {}
         target_set = {}
         # iterate through rows and construct tables from it
@@ -96,3 +103,13 @@ class Manager(object):
             # add instances to session
             self.session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
         self.session.commit()
+
+    def query_MTI(self, query_mir):
+        """Find all MTI's for a given miRTarBase identifier
+
+        :param query_mir: miRTarBase identifier of interest
+        :return targets: list of all targets of query_mir
+        """
+
+        targets = self.session.query([Mirna, Interaction, Target]).filter(Mirna.mirtarbase_id == query_mir).all()
+        return targets

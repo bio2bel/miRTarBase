@@ -5,8 +5,9 @@ from sqlalchemy.orm import relationship
 # create base class
 Base = declarative_base()
 
+
 class Mirna(Base):
-    """create mirna table that stores information about the miRNA"""
+    """Create mirna table that stores information about the miRNA"""
     __tablename__ = "mirna"
 
     id = Column(Integer, primary_key=True)
@@ -14,8 +15,9 @@ class Mirna(Base):
     mir_name = Column(String, nullable=False, doc="miRNA name")
     species = Column(String, nullable=False, doc="Species associated with miRNA")
 
+
 class Target(Base):
-    """build target table, which stores information about the target gene"""
+    """Build target table, which stores information about the target gene"""
     __tablename__ = "target"
 
     id = Column(Integer, primary_key=True)
@@ -23,8 +25,9 @@ class Target(Base):
     entrez_id = Column(Integer, nullable=False, unique=True, doc="Target gene Entrez ID")
     species = Column(String, nullable=False, doc="Species associated with target gene")
 
+
 class Evidence(Base):
-    """build Evidence table used to store MTI's and their evidence"""
+    """Build Evidence table used to store MTI's and their evidence"""
     __tablename__ = "evidence"
 
     id = Column(Integer, primary_key=True)
@@ -32,8 +35,9 @@ class Evidence(Base):
     support = Column(String, nullable=False, doc="Type and strength of the MTI")
     reference = Column(Integer, nullable=False, doc="Reference PubMed ID")
 
+
 class Interaction(Base):
-    """build Interaction table used to store miRNA and target relations"""
+    """Build Interaction table used to store miRNA and target relations"""
     __tablename__ = "interaction"
 
     id = Column(Integer, primary_key=True)

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+"""Depricated. Newer Version is split into models.py and manager.py"""
 
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
@@ -12,6 +13,7 @@ DATA_URL = 'http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.
 # create base class
 Base = declarative_base()
 
+
 class Mirna(Base):
     """create mirna table that stores information about the miRNA"""
     __tablename__ = "mirna"
@@ -20,6 +22,7 @@ class Mirna(Base):
     mirtarbase_id = Column(String, nullable=False, unique=True, doc="miRTarBase ID")
     mir_name = Column(String, nullable=False, doc="miRNA name")
     species = Column(String, nullable=False, doc="Species associated with miRNA")
+
 
 class Target(Base):
     """build target table, which stores information about the target gene"""
@@ -30,6 +33,7 @@ class Target(Base):
     entrez_id = Column(Integer, nullable=False, unique=True, doc="Target gene Entrez ID")
     species = Column(String, nullable=False, doc="Species associated with target gene")
 
+
 class Evidence(Base):
     """build Evidence table used to store MTI's and their evidence"""
     __tablename__ = "evidence"
@@ -38,6 +42,7 @@ class Evidence(Base):
     experiment = Column(String, nullable=False, doc="Experiments made for evidence")
     support = Column(String, nullable=False, doc="Type and strength of the MTI")
     reference = Column(Integer, nullable=False, doc="Reference PubMed ID")
+
 
 class Interaction(Base):
     """build Interaction table used to store miRNA and target relations"""
@@ -53,11 +58,13 @@ class Interaction(Base):
     evidence_id = Column(Integer, ForeignKey("evidence.id"))
     evidence = relationship("Evidence", backref="interaction")
 
+
 def make_engine():
     """create engine and create tables"""
     engine = create_engine('sqlite:///miRTarBase.db')
     Base.metadata.create_all(engine)
     return engine
+
 
 def make_session(engine):
     """create session"""
@@ -65,12 +72,13 @@ def make_session(engine):
     session = Session()
     return session
 
+
 def get_data():
     """Gets miRTarBase Interactions table and exclude rows with NULL values
 
     :rtype: pandas.DataFrame
     """
-    df = pd.read_excel("/home/colin/SCAI/test.xlsx")
+    df = pd.read_excel(DATA_URL)
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
     return df.drop(null_rows)
@@ -109,9 +117,9 @@ def populate(session):
 
 
 if __name__ == '__main__':
-    #create engine and database model
+    # create engine and database model
     engine = make_engine()
-    #create session for database
+    # create session for database
     session = make_session(engine)
-    #populate database
+    # populate database
     populate(session)
