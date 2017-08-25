@@ -18,7 +18,7 @@ class TestBuildDB(unittest.TestCase):
         # create temporary database
         self.manager = Manager(self.connection)
         # fill temporary database with test data
-        self.manager.populate()
+        self.manager.populate("./tests/test.xlsx")
 
     def tearDown(self):
         """Closes the connection in the manager and deletes the temporary database"""

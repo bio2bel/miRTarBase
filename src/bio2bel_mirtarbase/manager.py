@@ -104,7 +104,7 @@ class Manager(object):
             self.session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
         self.session.commit()
 
-    def query_MTI(self, query_mir):
+    def query_MTIs(self, query_mir):
         """Find all MTI's for a given miRTarBase identifier
 
         :param query_mir: miRTarBase identifier of interest
@@ -113,3 +113,7 @@ class Manager(object):
 
         targets = self.session.query([Mirna, Interaction, Target]).filter(Mirna.mirtarbase_id == query_mir).all()
         return targets
+
+    def query_(self, query):
+        """Find all """
+        pass
