@@ -83,7 +83,6 @@ class Manager(object):
         target_set = {}
         # iterate through rows and construct tables from it
         for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in df.itertuples():
-            print(mir_id)
             # create new miRNA instance
             if mir_id not in mirna_set:
                 new_mirna = Mirna(mirtarbase_id=mir_id, mir_name=mirna, species=species_mirna)
@@ -111,9 +110,8 @@ class Manager(object):
         :return targets: list of all targets of query_mir
         """
 
-        targets = self.session.query([Mirna, Interaction, Target]).filter(Mirna.mirtarbase_id == query_mir).all()
-        return targets
+        raise NotImplementedError
 
     def query_(self, query):
         """Find all """
-        pass
+        raise NotImplementedError
