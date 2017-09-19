@@ -71,6 +71,17 @@ class Manager(object):
         """Create tables"""
         Base.metadata.create_all(self.engine, checkfirst=check_first)
 
+    @staticmethod
+    def ensure(connection=None):
+        """Checks and allows for a Manager to be passed to the function. """
+        if connection is None or isinstance(connection, str):
+            return Manager(connection=connection)
+
+        if isinstance(connection, Manager):
+            return connection
+
+        raise TypeError
+
     def populate(self, source=None):
         """Populate database with the data from miRTarBase
 
@@ -103,6 +114,10 @@ class Manager(object):
             self.session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
         self.session.commit()
 
+    def map_entrez_to_hgnc(self):
+        """Function to map entrez identifiers to HGNC identifiers"""
+        raise NotImplementedError
+
     def query_MTIs(self, query_mir):
         """Find all MTI's for a given miRTarBase identifier
 
@@ -112,6 +127,25 @@ class Manager(object):
 
         raise NotImplementedError
 
-    def query_(self, query):
-        """Find all """
+    def query_targets(self, targets):
+        """Find all targets
+
+        :param list[str] targets: list of HGNC names
+        """
         raise NotImplementedError
+
+    def query_target_by_entrez_id(self, entrez_id):
+        """Query for one target
+
+        :param str entrez_id: Entrez gene identifier
+        :rtype: Target
+        """
+        return self.session.query(Target).filter(Target.entrez_id == entrez_id).one_or_none()
+
+    def query_target_by_hgnc_symbol(self, hgnc_symbol):
+        """Query for one target
+
+        :param str hgnc_symbol: HGNC gene symbol
+        :rtype: Target
+        """
+        return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()
