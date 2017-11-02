@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*-
+
+from pybel.constants import FUNCTION, MIRNA, NAME, NAMESPACE, RNA
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
-
-from pybel.constants import FUNCTION, NAMESPACE, NAME, MIRNA, RNA
 
 ENTREZ_GENE_ID = 'EGID'
 MIRTARBASE_ID = 'MIRTARBASE'
@@ -38,10 +39,10 @@ class Target(Base):
 
     id = Column(Integer, primary_key=True)
     target_gene = Column(String, nullable=False, doc="Target gene name")
-    entrez_id = Column(Integer, nullable=False, unique=True, doc="Target gene Entrez ID")
+    entrez_id = Column(String, nullable=False, unique=True, doc="Target gene Entrez ID")
     species = Column(String, nullable=False, doc="Species associated with target gene")
-    hgnc_symbol = Column(String, nullable=True, doc="")
-    hgnc_id = Column(String, nullable=True, doc="")
+    hgnc_symbol = Column(String, nullable=True, doc="HGNC Gene Symbol")
+    hgnc_id = Column(String, nullable=True, doc="HGNC Gene Identifier")
 
     def serialize_to_entrez_node(self):
         """Function to serialize to PyBEL node data dictionary.
@@ -65,6 +66,19 @@ class Target(Base):
             NAME: self.hgnc_symbol
         }
 
+    def to_json(self):
+        return {
+            'id': self.id,
+            'species': self.species,
+            'HGNC': {
+                'symbol': self.hgnc_symbol,
+                'id': self.hgnc_id
+            },
+            'Entrez': {
+                'id': self.entrez_id,
+                'name': self.target_gene
+            }
+        }
 
 
 class Evidence(Base):
@@ -72,9 +86,11 @@ class Evidence(Base):
     __tablename__ = "evidence"
 
     id = Column(Integer, primary_key=True)
-    experiment = Column(String, nullable=False, doc="Experiments made to find miRNA - target interaction. E.g. 'Luciferase reporter assay//qRT-PCR//Western blot'")
-    support = Column(String, nullable=False, doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
-    reference = Column(Integer, nullable=False, doc="Reference PubMed ID")
+    experiment = Column(String, nullable=False,
+                        doc="Experiments made to find miRNA - target interaction. E.g. 'Luciferase reporter assay//qRT-PCR//Western blot'")
+    support = Column(String, nullable=False,
+                     doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
+    reference = Column(String, nullable=False, doc="Reference PubMed Identifier")
 
 
 class Interaction(Base):

@@ -3,16 +3,16 @@
 import configparser
 import logging
 import os
+import time
 
 import pandas as pd
+import pyhgnc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from .models import Base, Mirna, Target, Evidence, Interaction
-from .constants import (
-    DATA_URL,
-    MIRTARBASE_SQLITE_PATH,
-    MIRTARBASE_CONFIG_FILE_PATH,
-)
+from tqdm import tqdm
+
+from .constants import DATA_URL, MIRTARBASE_CONFIG_FILE_PATH, MIRTARBASE_SQLITE_PATH
+from .models import Base, Evidence, Interaction, Mirna, Target
 
 log = logging.getLogger(__name__)
 
@@ -20,11 +20,10 @@ log = logging.getLogger(__name__)
 def get_data(source=None):
     """Gets miRTarBase Interactions table and exclude rows with NULL values
 
+    :param str source: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
     :rtype: pandas.DataFrame
     """
-    if not source:
-        source = DATA_URL
-    df = pd.read_excel(source)
+    df = pd.read_excel(source or DATA_URL)
 
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
@@ -33,6 +32,9 @@ def get_data(source=None):
 
 class Manager(object):
     def __init__(self, connection=None):
+        """
+        :param str connection: The connection string
+        """
         self.connection = self.get_connection(connection)
         self.engine = create_engine(self.connection)
         self.sessionmake = sessionmaker(bind=self.engine, autoflush=False, expire_on_commit=False)
@@ -73,7 +75,11 @@ class Manager(object):
 
     @staticmethod
     def ensure(connection=None):
-        """Checks and allows for a Manager to be passed to the function. """
+        """Checks and allows for a Manager to be passed to the function
+
+        :type connection: None or str or Manager
+        :rtype: Manager
+        """
         if connection is None or isinstance(connection, str):
             return Manager(connection=connection)
 
@@ -82,37 +88,78 @@ class Manager(object):
 
         raise TypeError
 
-    def populate(self, source=None):
+    def populate(self, source=None, update_pyhgnc=False):
         """Populate database with the data from miRTarBase
 
-        :param session: session object from sqlalchemy
-        :param source: path or link to data source needed for get_data()
-        :return:
+        :param str source: path or link to data source needed for :func:`get_data`
         """
+        if update_pyhgnc:
+            pyhgnc.update()
+
+        t = time.time()
+        log.info('getting data')
         df = get_data(source)
+        log.info('got data in %.2f seconds', time.time() - t)
+
         mirna_set = {}
         target_set = {}
-        # iterate through rows and construct tables from it
-        for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in df.itertuples():
+
+        log.info('getting entrez mapping')
+        pyhgnc_manager = pyhgnc.QueryManager()
+        log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
+        t = time.time()
+        emap = {
+            int(model.entrez): model
+            for model in pyhgnc_manager.hgnc()
+            if model.entrez
+        }
+        log.info('got entrez mapping in %.2f seconds', time.time() - t)
+
+        log.info('building models')
+        t = time.time()
+        for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in tqdm(
+                df.itertuples(), total=len(df.index)):
             # create new miRNA instance
             if mir_id not in mirna_set:
                 new_mirna = Mirna(mirtarbase_id=mir_id, mir_name=mirna, species=species_mirna)
+                self.session.add(new_mirna)
                 mirna_set[mir_id] = new_mirna
 
             # create new target instance
             if entrez not in target_set:
-                new_target = Target(target_gene=target, entrez_id=int(entrez), species=species_target)
+                new_target = Target(
+                    entrez_id=entrez,
+                    species=species_target,
+                    target_gene=target,
+                )
+
+                if int(entrez) in emap:
+                    g_first = emap[int(entrez)]
+                    new_target.hgnc_symbol = g_first.symbol,
+                    new_target.hgnc_id = g_first.identifier,
+
+                self.session.add(new_target)
                 target_set[entrez] = new_target
 
             # create new evidence instance
-            new_evidence = Evidence(experiment=exp, support=sup_type, reference=int(pubmed))
+            new_evidence = Evidence(experiment=exp, support=sup_type, reference=pubmed)
+            self.session.add(new_evidence)
 
             # create new interaction instance
             new_interaction = Interaction(mirna=mirna_set[mir_id], target=target_set[entrez], evidence=new_evidence)
+            self.session.add(new_interaction)
 
-            # add instances to session
-            self.session.add_all([mirna_set[mir_id], target_set[entrez], new_evidence, new_interaction])
-        self.session.commit()
+        log.info('build models in %.2f seconds', time.time() - t)
+
+        log.info('committing models')
+        t = time.time()
+
+        try:
+            self.session.commit()
+            log.info('committed after %.2f seconds', time.time() - t)
+        except:
+            self.session.rollback()
+            log.exception('commit failed after %.2f seconds', time.time() - t)
 
     def map_entrez_to_hgnc(self):
         """Function to map entrez identifiers to HGNC identifiers"""
@@ -138,7 +185,7 @@ class Manager(object):
         """Query for one target
 
         :param str entrez_id: Entrez gene identifier
-        :rtype: Target
+        :rtype: Optional[Target]
         """
         return self.session.query(Target).filter(Target.entrez_id == entrez_id).one_or_none()
 
@@ -146,6 +193,6 @@ class Manager(object):
         """Query for one target
 
         :param str hgnc_symbol: HGNC gene symbol
-        :rtype: Target
+        :rtype: Optional[Target]
         """
         return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()

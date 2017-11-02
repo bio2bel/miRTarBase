@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 
+import codecs
 import os
 import re
-import codecs
 
 import setuptools
 
@@ -11,13 +11,19 @@ META_PATH = os.path.join('src', 'bio2bel_mirtarbase', '__init__.py')
 INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
-    'pybel_tools',
-    'xlrd'
+    'pybel',
+    'pyhgnc',
+    'xlrd',
+    'click',
+    'tqdm',
 ]
 ENTRY_POINTS = {
     'bio2bel': [
         'mirtarbase = bio2bel_mirtarbase',
     ],
+    'console_scripts': [
+        'bio2bel_mirtarbase = bio2bel_mirtarbase.cli:main',
+    ]
 }
 
 HERE = os.path.abspath(os.path.dirname(__file__))

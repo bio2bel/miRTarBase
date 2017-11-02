@@ -1,5 +1,7 @@
 pandas
 sqlalchemy
-pybel_tools
 xlrd
-pytest
+pyhgnc
+pybel
+click
+tqdm

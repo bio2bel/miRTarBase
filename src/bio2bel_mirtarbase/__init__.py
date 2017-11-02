@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from . import run
-from .run import *
-
 __version__ = '0.1.1-dev'
 
 __title__ = 'bio2bel_mirtarbase'
