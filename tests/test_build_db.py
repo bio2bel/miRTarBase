@@ -37,7 +37,7 @@ class TemporaryCacheClassMixin(unittest.TestCase):
         cls.connection = 'sqlite:///' + cls.path
 
         # create temporary database
-        cls.manager = Manager(cls.connection)
+        cls.manager = Manager(connection=cls.connection)
         # fill temporary database with test data
         cls.manager.populate(test_xls_path)
 

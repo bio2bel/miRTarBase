@@ -109,7 +109,7 @@ class Manager(object):
         log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
         t = time.time()
         emap = {
-            int(model.entrez): model
+            model.entrez: model
             for model in pyhgnc_manager.hgnc()
             if model.entrez
         }
@@ -125,6 +125,8 @@ class Manager(object):
                 self.session.add(new_mirna)
                 mirna_set[mir_id] = new_mirna
 
+            entrez = str(entrez)
+
             # create new target instance
             if entrez not in target_set:
                 new_target = Target(
@@ -133,10 +135,10 @@ class Manager(object):
                     target_gene=target,
                 )
 
-                if int(entrez) in emap:
-                    g_first = emap[int(entrez)]
-                    new_target.hgnc_symbol = g_first.symbol,
-                    new_target.hgnc_id = g_first.identifier,
+                if entrez in emap:
+                    g_first = emap[entrez]
+                    new_target.hgnc_symbol = g_first.symbol
+                    new_target.hgnc_id = str(g_first.identifier)
 
                 self.session.add(new_target)
                 target_set[entrez] = new_target
