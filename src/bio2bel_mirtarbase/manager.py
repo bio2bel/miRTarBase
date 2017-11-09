@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from .constants import DATA_URL, MIRTARBASE_CONFIG_FILE_PATH, MIRTARBASE_SQLITE_PATH
+from .constants import DATA_URL, MIRTARBASE_CONFIG_FILE_PATH, DEFAULT_CACHE_CONNECTION
 from .models import Base, Evidence, Interaction, Mirna, Target
 
 log = logging.getLogger(__name__)
@@ -63,11 +63,11 @@ class Manager(object):
             return connection
 
         with open(cfp, 'w') as config_file:
-            config['database'] = {'sqlalchemy_connection_string': MIRTARBASE_SQLITE_PATH}
+            config['database'] = {'sqlalchemy_connection_string': DEFAULT_CACHE_CONNECTION}
             config.write(config_file)
             log.info('create configuration file {}'.format(cfp))
 
-        return MIRTARBASE_SQLITE_PATH
+        return DEFAULT_CACHE_CONNECTION
 
     def make_tables(self, check_first=True):
         """Create tables"""

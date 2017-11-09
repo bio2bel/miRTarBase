@@ -5,11 +5,12 @@ import os
 #: Data source
 DATA_URL = 'http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx'
 
-MIRTARBASE_DATA_DIR = os.path.join(os.path.expanduser('~'), '.pybel', 'bio2bel', 'mirtarbase')
-os.makedirs(MIRTARBASE_DATA_DIR, exist_ok=True)
+BIO2BEL_DIR = os.environ.get('BIO2BEL_DIRECTORY', os.path.join(os.path.expanduser('~'), '.pybel', 'bio2bel'))
+DATA_DIR = os.path.join(BIO2BEL_DIR, 'mirtarbase')
+os.makedirs(DATA_DIR, exist_ok=True)
 
-MIRTARBASE_DATABASE_NAME = 'mirtarbase.db'
-MIRTARBASE_DATABASE_PATH = os.path.join(MIRTARBASE_DATA_DIR, MIRTARBASE_DATABASE_NAME)
-MIRTARBASE_SQLITE_PATH = 'sqlite:///' + MIRTARBASE_DATABASE_PATH
+DEFAULT_CACHE_NAME = 'mirtarbase.db'
+DEFAULT_CACHE_PATH = os.path.join(DATA_DIR, DEFAULT_CACHE_NAME)
+DEFAULT_CACHE_CONNECTION = os.environ.get('BIO2BEL_MIRTARBASE_DB', 'sqlite:///' + DEFAULT_CACHE_PATH)
 
-MIRTARBASE_CONFIG_FILE_PATH = os.path.join(MIRTARBASE_DATA_DIR, 'config.ini')
+MIRTARBASE_CONFIG_FILE_PATH = os.path.join(DATA_DIR, 'config.ini')
