@@ -11,7 +11,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from .constants import DATA_URL, MIRTARBASE_CONFIG_FILE_PATH, DEFAULT_CACHE_CONNECTION
+from .constants import CONFIG_FILE_PATH, DATA_URL, DEFAULT_CACHE_CONNECTION
 from .models import Base, Evidence, Interaction, Mirna, Target
 
 log = logging.getLogger(__name__)
@@ -31,15 +31,17 @@ def get_data(source=None):
 
 
 class Manager(object):
+    """Manages the mirTarBase database"""
+
     def __init__(self, connection=None):
         """
         :param str connection: The connection string
         """
         self.connection = self.get_connection(connection)
         self.engine = create_engine(self.connection)
-        self.sessionmake = sessionmaker(bind=self.engine, autoflush=False, expire_on_commit=False)
-        self.session = self.sessionmake()
-        self.make_tables()
+        self.session_maker = sessionmaker(bind=self.engine, autoflush=False, expire_on_commit=False)
+        self.session = self.session_maker()
+        self.create_all()
 
     @staticmethod
     def get_connection(connection=None):
@@ -53,7 +55,7 @@ class Manager(object):
 
         config = configparser.ConfigParser()
 
-        cfp = MIRTARBASE_CONFIG_FILE_PATH
+        cfp = CONFIG_FILE_PATH
 
         if os.path.exists(cfp):
             log.info('fetch database configuration from {}'.format(cfp))
@@ -69,9 +71,14 @@ class Manager(object):
 
         return DEFAULT_CACHE_CONNECTION
 
-    def make_tables(self, check_first=True):
-        """Create tables"""
+    def create_all(self, check_first=True):
+        """Creates all tables"""
         Base.metadata.create_all(self.engine, checkfirst=check_first)
+
+    def drop_all(self, check_first=True):
+        """Drops all tables"""
+        log.info('dropping tables')
+        Base.metadata.drop_all(self.engine, checkfirst=check_first)
 
     @staticmethod
     def ensure(connection=None):
@@ -92,6 +99,7 @@ class Manager(object):
         """Populate database with the data from miRTarBase
 
         :param str source: path or link to data source needed for :func:`get_data`
+        :param bool update_pyhgnc: Should HGNC be updated?
         """
         if update_pyhgnc:
             pyhgnc.update()
@@ -151,7 +159,7 @@ class Manager(object):
             new_interaction = Interaction(mirna=mirna_set[mir_id], target=target_set[entrez], evidence=new_evidence)
             self.session.add(new_interaction)
 
-        log.info('build models in %.2f seconds', time.time() - t)
+        log.info('built models in %.2f seconds', time.time() - t)
 
         log.info('committing models')
         t = time.time()

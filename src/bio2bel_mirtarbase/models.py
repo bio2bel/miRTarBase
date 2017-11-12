@@ -40,6 +40,9 @@ class Mirna(Base):
             NAME: self.mir_name
         }
 
+    def __str__(self):
+        return self.mir_name
+
 
 class Target(Base):
     """Build target table, which stores information about the target gene"""
@@ -64,6 +67,9 @@ class Target(Base):
             IDENTIFIER: self.entrez_id,
             NAME: self.target_gene,
         }
+
+    def __str__(self):
+        return self.target_gene
 
     def serialize_to_hgnc_node(self):
         """Function to serialize to PyBEL node data dictionary.
@@ -107,6 +113,9 @@ class Evidence(Base):
     support = Column(String, nullable=False,
                      doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
     reference = Column(String, nullable=False, doc="Reference PubMed Identifier")
+
+    def __str__(self):
+        return '{}: {}'.format(self.reference, self.support)
 
 
 class Interaction(Base):
