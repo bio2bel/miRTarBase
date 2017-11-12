@@ -9,7 +9,7 @@ from bio2bel_mirtarbase.manager import Manager
 
 @click.group()
 def main():
-    """Bio2BEL miRTarBase"""
+    """miRTarBase to BEL"""
     logging.basicConfig(level=logging.INFO)
 
 
