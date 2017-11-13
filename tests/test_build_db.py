@@ -25,6 +25,8 @@ class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
         """Create temporary file and populate database"""
         super(TemporaryFilledCacheMixin, cls).setUpClass()
         # fill temporary database with test data
+        cls.pyhgnc_manager._create_tables()
+        #cls.pyhgnc_manager.db_import(silent=False, hgnc_file_path=None, hcop_file_path=None)
         cls.manager.populate(test_xls_path)
 
 

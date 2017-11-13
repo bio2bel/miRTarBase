@@ -102,14 +102,15 @@ class Manager(object):
 
         raise TypeError
 
-    def populate(self, source=None, update_pyhgnc=False):
+    def populate(self, source=None, update_pyhgnc=False, pyhgnc_connection=None):
         """Populate database with the data from miRTarBase
 
         :param str source: path or link to data source needed for :func:`get_data`
         :param bool update_pyhgnc: Should HGNC be updated?
+        :param Optional[str] pyhgnc_connection: Optional connection string for pyhgnc
         """
         if update_pyhgnc:
-            pyhgnc.update()
+            pyhgnc.update(connection=pyhgnc_connection)
 
         t = time.time()
         log.info('getting data')
@@ -121,7 +122,7 @@ class Manager(object):
         species_set = {}
 
         log.info('getting entrez mapping')
-        pyhgnc_manager = pyhgnc.QueryManager()
+        pyhgnc_manager = pyhgnc.QueryManager(connection=pyhgnc_connection)
         log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
         t = time.time()
         emap = {
