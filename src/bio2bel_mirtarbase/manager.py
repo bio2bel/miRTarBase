@@ -10,11 +10,18 @@ import pyhgnc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
-
-from .constants import CONFIG_FILE_PATH, DATA_URL, DEFAULT_CACHE_CONNECTION
-from .models import Base, Evidence, Interaction, Mirna, Target
+from urllib.request import urlretrieve
+from bio2bel_mirtarbase.constants import CONFIG_FILE_PATH, DATA_URL, DEFAULT_CACHE_CONNECTION, DATA_DIR
+from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
 
 log = logging.getLogger(__name__)
+
+DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')
+
+
+def download_data(force_download=False):
+    if not os.path.exists(DATA_FILE_PATH) or force_download:
+        urlretrieve(DATA_URL, DATA_FILE_PATH)
 
 
 def get_data(source=None):
@@ -111,6 +118,7 @@ class Manager(object):
 
         mirna_set = {}
         target_set = {}
+        species_set = {}
 
         log.info('getting entrez mapping')
         pyhgnc_manager = pyhgnc.QueryManager()
@@ -125,21 +133,38 @@ class Manager(object):
 
         log.info('building models')
         t = time.time()
-        for index, mir_id, mirna, species_mirna, target, entrez, species_target, exp, sup_type, pubmed in tqdm(
-                df.itertuples(), total=len(df.index)):
+        for (index, mirtarbase_id, mirtarbase_name, mirna_species, target, entrez, taret_species, exp, sup_type,
+             pubmed) in tqdm(df.itertuples(), total=len(df.index)):
             # create new miRNA instance
-            if mir_id not in mirna_set:
-                new_mirna = Mirna(mirtarbase_id=mir_id, mir_name=mirna, species=species_mirna)
-                self.session.add(new_mirna)
-                mirna_set[mir_id] = new_mirna
+            if mirtarbase_id not in mirna_set:
 
-            entrez = str(entrez)
+                species = species_set.get(mirna_species)
+
+                if species is None:
+                    species = species_set[mirna_species] = Species(name=mirna_species)
+                    self.session.add(species)
+
+                new_mirna = Mirna(
+                    mirtarbase_id=mirtarbase_id,
+                    mirtarbase_name=mirtarbase_name,
+                    species=species
+                )
+                self.session.add(new_mirna)
+                mirna_set[mirtarbase_id] = new_mirna
+
+            entrez = str(int(entrez))
 
             # create new target instance
             if entrez not in target_set:
+                species = species_set.get(taret_species)
+
+                if species is None:
+                    species = species_set[taret_species] = Species(name=taret_species)
+                    self.session.add(species)
+
                 new_target = Target(
                     entrez_id=entrez,
-                    species=species_target,
+                    species=species,
                     target_gene=target,
                 )
 
@@ -156,7 +181,8 @@ class Manager(object):
             self.session.add(new_evidence)
 
             # create new interaction instance
-            new_interaction = Interaction(mirna=mirna_set[mir_id], target=target_set[entrez], evidence=new_evidence)
+            new_interaction = Interaction(mirna=mirna_set[mirtarbase_id], target=target_set[entrez],
+                                          evidence=new_evidence)
             self.session.add(new_interaction)
 
         log.info('built models in %.2f seconds', time.time() - t)
@@ -206,3 +232,11 @@ class Manager(object):
         :rtype: Optional[Target]
         """
         return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=20)
+    log.setLevel(20)
+    m = Manager()
+    m.drop_all()
+    m.populate()

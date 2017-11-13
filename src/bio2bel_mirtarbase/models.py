@@ -11,6 +11,7 @@ MIRTARBASE_ID = 'MIRTARBASE'
 MIRTARBASE_PREFIX = 'mirtarbase'
 MIRNA_TABLE_NAME = '{}_mirna'.format(MIRTARBASE_PREFIX)
 TARGET_TABLE_NAME = '{}_target'.format(MIRTARBASE_PREFIX)
+SPECIES_TABLE_NAME = '{}_species'.format(MIRTARBASE_PREFIX)
 EVIDENCE_TABLE_NAME = '{}_evidence'.format(MIRTARBASE_PREFIX)
 INTERACTION_TABLE_NAME = '{}_interaction'.format(MIRTARBASE_PREFIX)
 
@@ -24,9 +25,11 @@ class Mirna(Base):
 
     id = Column(Integer, primary_key=True)
 
-    mirtarbase_id = Column(String, nullable=False, unique=True, doc="miRTarBase ID")
-    mir_name = Column(String, nullable=False, doc="miRNA name")
-    species = Column(String, nullable=False, doc="Species associated with miRNA")
+    mirtarbase_id = Column(String, nullable=False, unique=True, doc="miRTarBase identifier")
+    mirtarbase_name = Column(String, nullable=False, doc="miRTarBase name")
+
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
+    species = relationship('Species')
 
     def serialize_to_bel(self):
         """Function to serialize to PyBEL node data dictionary.
@@ -37,11 +40,11 @@ class Mirna(Base):
             FUNCTION: MIRNA,
             NAMESPACE: MIRTARBASE_ID,
             IDENTIFIER: self.mirtarbase_id,
-            NAME: self.mir_name
+            NAME: self.mirtarbase_name
         }
 
     def __str__(self):
-        return self.mir_name
+        return self.mirtarbase_name
 
 
 class Target(Base):
@@ -52,9 +55,12 @@ class Target(Base):
 
     target_gene = Column(String, nullable=False, doc="Target gene name")
     entrez_id = Column(String, nullable=False, unique=True, doc="Target gene Entrez ID")
-    species = Column(String, nullable=False, doc="Species associated with target gene")
+
     hgnc_symbol = Column(String, nullable=True, doc="HGNC Gene Symbol")
     hgnc_id = Column(String, nullable=True, doc="HGNC Gene Identifier")
+
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
+    species = relationship('Species')
 
     def serialize_to_entrez_node(self):
         """Function to serialize to PyBEL node data dictionary.
@@ -101,6 +107,17 @@ class Target(Base):
             }
         }
 
+
+class Species(Base):
+    """Represents a species"""
+    __tablename__ = SPECIES_TABLE_NAME
+
+    id = Column(Integer, primary_key=True)
+
+    name = Column(String, nullable=False, unique=True, index=True)
+
+    def __str__(self):
+        return self.name
 
 class Evidence(Base):
     """Build Evidence table used to store MTI's and their evidence"""

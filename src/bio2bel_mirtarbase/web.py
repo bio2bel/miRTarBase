@@ -7,15 +7,23 @@ from flask_admin.contrib.sqla import ModelView
 from bio2bel_mirtarbase.manager import Manager
 from bio2bel_mirtarbase.models import *
 
-app = Flask(__name__)
-admin = flask_admin.Admin(app, url='/')
 
-manager = Manager()
+def add_admin_view(app, manager, url='/'):
+    admin = flask_admin.Admin(app, url=url)
+    admin.add_view(ModelView(Interaction, manager.session))
+    admin.add_view(ModelView(Mirna, manager.session))
+    admin.add_view(ModelView(Target, manager.session))
+    admin.add_view(ModelView(Evidence, manager.session))
+    return admin
 
-admin.add_view(ModelView(Interaction, manager.session))
-admin.add_view(ModelView(Mirna, manager.session))
-admin.add_view(ModelView(Target, manager.session))
-admin.add_view(ModelView(Evidence, manager.session))
+
+def get_app(connection=None):
+    app = Flask(__name__)
+    manager = Manager(connection=connection)
+    add_admin_view(app, manager)
+    return app
+
 
 if __name__ == '__main__':
+    app = get_app()
     app.run(debug=True, host='0.0.0.0', port=5000)

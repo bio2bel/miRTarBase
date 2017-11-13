@@ -18,7 +18,7 @@ def enrich_rnas(graph, manager=None):
     """
     manager = Manager.ensure(manager)
 
-    for node, data in graph.nodes_iter(data=True):
+    for node, data in graph.nodes(data=True):
         if data[FUNCTION] != RNA:
             continue
 
