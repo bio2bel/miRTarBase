@@ -11,7 +11,7 @@ META_PATH = os.path.join('src', 'bio2bel_mirtarbase', '__init__.py')
 INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
-    'pybel',
+    'pybel>=0.9.6',
     'pyhgnc',
     'xlrd',
     'click',
