@@ -16,7 +16,7 @@ hif1a_hgnc_name = rna(name=hif1a_symbol, namespace='HGNC')
 hif1a_hgnc_identifier = rna(identifier='4910', namespace='HGNC')
 hif1a_entrez_name = rna(name='3091', namespace='EGID')
 hif1a_entrez_identifier = rna(identifier='3091', namespace='ENTREZ')
-mi3_data = mirna(name='hsa-miR-20a-5p', namespace='MIRTARBASE', identifier='MIRT000002')
+mi2_data = mirna(name='hsa-miR-20a-5p', namespace='MIRTARBASE', identifier='MIRT000002')
 mi5_data = mirna(name='mmu-miR-124-3p', namespace='MIRTARBASE', identifier='MIRT000005')
 
 
@@ -60,9 +60,9 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         self.assertEqual("Luciferase reporter assay//qRT-PCR//Western blot//Reporter assay;Microarray", ev2.experiment)
 
     def check_mir5(self, model):
-        """Checks the model has the richt information for mmu-miR-124-3p
+        """Checks the model has the right information for mmu-miR-124-3p
 
-        :param Mirna model:
+        :type model: Mirna
         """
         self.assertIsNotNone(model)
         self.assertEqual("mmu-miR-124-3p", model.mirtarbase_name)
@@ -75,13 +75,33 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         self.assertEqual(mi5_data[NAMESPACE], bel_data[NAMESPACE])
 
     def test_mirna_by_mirtarbase_id(self):
-        mi3 = self.manager.query_mirna_by_mirtarbase_identifier('MIRT000005')
-        self.check_mir5(mi3)
+        mi5 = self.manager.query_mirna_by_mirtarbase_identifier('MIRT000005')
+        self.check_mir5(mi5)
+
+    def check_mir2(self, model):
+        """Checks the model has the right information for mmu-miR-124-3p
+
+        :type model: Mirna
+        """
+        self.assertIsNotNone(model)
+        self.assertEqual("hsa-miR-20a-5p", model.mirtarbase_name)
+        self.assertEqual('MIRT000002', model.mirtarbase_id)
+
+        bel_data = model.serialize_to_bel()
+
+        self.assertEqual(mi2_data[FUNCTION], bel_data[FUNCTION])
+        self.assertEqual(mi2_data[NAME], bel_data[NAME])
+        self.assertEqual(mi2_data[NAMESPACE], bel_data[NAMESPACE])
+
+    def test_mirna_2_by_mirtarbase_id(self):
+        mi2 = self.manager.query_mirna_by_mirtarbase_identifier('MIRT000002')
+        self.check_mir2(mi2)
 
     def test_target(self):
         target = self.manager.query_target_by_entrez_id('7852')
         self.assertIsNotNone(target)
         self.assertEqual("CXCR4", target.target_gene)
+        self.assertEqual("2561", target.hgnc_id)
 
     def check_hif1a(self, model):
         """Checks the model has all the right information for HIF1A
@@ -118,13 +138,13 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         hif1a_tuple = graph.add_node_from_data(node_data)
         self.assertEqual(1, graph.number_of_nodes())
 
-        enrich_rnas(graph, manager=self.manager)  # shuld enrich with the HIF1A - hsa-miR-20a-5p interaction
+        enrich_rnas(graph, manager=self.manager)  # should enrich with the HIF1A - hsa-miR-20a-5p interaction
         self.assertEqual(2, graph.number_of_nodes())
         self.assertEqual(3, graph.number_of_edges())
 
-        self.assertTrue(graph.has_node_with_data(mi3_data))
+        self.assertTrue(graph.has_node_with_data(mi2_data))
 
-        t1_tuple = node_to_tuple(mi3_data)
+        t1_tuple = node_to_tuple(mi2_data)
         self.assertTrue(graph.has_edge(t1_tuple, hif1a_tuple))
 
     def test_enrich_hgnc_symbol(self):

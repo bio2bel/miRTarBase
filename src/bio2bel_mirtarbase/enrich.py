@@ -12,7 +12,7 @@ def enrich_rnas(graph, manager=None):
     """Adds all of the miRNA inhibitors of the proteins in the graph
 
     :param pybel.BELGraph graph: A BEL graph
-    :param manager: A mirTarBase database manager
+    :param manager: A miRTarBase database manager
     :type manager: None or str or Manager
     """
     manager = Manager.ensure(manager)
@@ -48,17 +48,14 @@ def enrich_rnas(graph, manager=None):
             continue
 
         for interaction in target.interactions:
-            mirna_data = interaction.mirna.serialize_to_bel()
-            mirna_tuple = graph.add_node_from_data(mirna_data)
-            graph.add_edge(mirna_tuple, node, attr_dict={
-                RELATION: DIRECTLY_DECREASES,
-                EVIDENCE: '...',  # FIXME
-                CITATION: {
-                    CITATION_TYPE: CITATION_TYPE_PUBMED,
-                    CITATION_REFERENCE: interaction.evidence.reference,
-                },
-                ANNOTATIONS: {
+            graph.add_qualified_edge(
+                interaction.mirna.serialize_to_bel(),
+                node,
+                relation=DIRECTLY_DECREASES,
+                evidence=interaction.evidence.support,
+                citation=str(interaction.evidence.reference),
+                annotations={
                     'Experiment': interaction.evidence.experiment,
                     'SupportType': interaction.evidence.support,
                 }
-            })
+            )
