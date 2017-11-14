@@ -1,0 +1,151 @@
+{
+  "responseHeader": {
+    "status": 0,
+    "QTime": 17
+  },
+  "response": {
+    "numFound": 2,
+    "docs": [
+      {
+        "gene_family": [
+          "CD molecules",
+          "C-X-C motif chemokine receptors"
+        ],
+        "date_approved_reserved": "1998-09-17",
+        "vega_id": "OTTHUMG00000153583",
+        "locus_group": "protein-coding gene",
+        "status": "Approved",
+        "alias_symbol": [
+          "LESTR",
+          "NPY3R",
+          "HM89",
+          "NPYY3R",
+          "D2S201E",
+          "fusin",
+          "HSY3RR",
+          "NPYR",
+          "CD184"
+        ],
+        "_version_": 1583018082954117121,
+        "uuid": "b54fe576-82cb-4006-8061-20f732841f99",
+        "prev_name": [
+          "chemokine (C-X-C motif), receptor 4 (fusin)",
+          "chemokine (C-X-C motif) receptor 4"
+        ],
+        "lsdb": [
+          "CXCR4base: Mutation registry for WHIM syndrome (warts, hypogammaglobulinemia, immunodeficiency, and myelokathexis)|http://structure.bmc.lu.se/idbase/CXCR4base/",
+          "LRG_51|http://www.lrg-sequence.org/LRG/LRG_51"
+        ],
+        "refseq_accession": [
+          "NM_001008540"
+        ],
+        "locus_type": "gene with protein product",
+        "iuphar": "objectId:71",
+        "gene_family_id": [
+          471,
+          1094
+        ],
+        "cosmic": "CXCR4",
+        "hgnc_id": "HGNC:2561",
+        "rgd_id": [
+          "RGD:620465"
+        ],
+        "ensembl_gene_id": "ENSG00000121966",
+        "entrez_id": "7852",
+        "omim_id": [
+          "162643"
+        ],
+        "symbol": "CXCR4",
+        "date_name_changed": "2016-03-14",
+        "cd": "CD184",
+        "location": "2q22.1",
+        "name": "C-X-C motif chemokine receptor 4",
+        "date_modified": "2017-03-24",
+        "mgd_id": [
+          "MGI:109563"
+        ],
+        "ucsc_id": "uc002tuy.3",
+        "uniprot_ids": [
+          "P61073"
+        ],
+        "orphanet": 120914,
+        "ccds_id": [
+          "CCDS33295",
+          "CCDS46420"
+        ],
+        "ena": [
+          "AF005058"
+        ],
+        "pubmed_id": [
+          9599023,
+          9379028
+        ],
+        "location_sortable": "02q22.1"
+      },
+      {
+        "gene_family": [
+          "Basic helix-loop-helix proteins"
+        ],
+        "date_approved_reserved": "1995-03-27",
+        "vega_id": "OTTHUMG00000140344",
+        "locus_group": "protein-coding gene",
+        "status": "Approved",
+        "alias_symbol": [
+          "MOP1",
+          "HIF-1alpha",
+          "PASD8",
+          "HIF1",
+          "bHLHe78"
+        ],
+        "_version_": 1583018083677634560,
+        "uuid": "029e4ee1-c713-4700-a65c-ecd131c503fc",
+        "prev_name": [
+          "hypoxia inducible factor 1, alpha subunit (basic helix-loop-helix transcription factor)"
+        ],
+        "refseq_accession": [
+          "NM_001530"
+        ],
+        "locus_type": "gene with protein product",
+        "gene_family_id": [
+          420
+        ],
+        "cosmic": "HIF1A",
+        "hgnc_id": "HGNC:4910",
+        "rgd_id": [
+          "RGD:61928"
+        ],
+        "ensembl_gene_id": "ENSG00000100644",
+        "entrez_id": "3091",
+        "omim_id": [
+          "603348"
+        ],
+        "symbol": "HIF1A",
+        "date_name_changed": "2016-02-15",
+        "location": "14q23.2",
+        "name": "hypoxia inducible factor 1 alpha subunit",
+        "date_modified": "2016-02-15",
+        "mgd_id": [
+          "MGI:106918"
+        ],
+        "ucsc_id": "uc001xfq.3",
+        "uniprot_ids": [
+          "Q16665"
+        ],
+        "orphanet": 470450,
+        "ccds_id": [
+          "CCDS9753",
+          "CCDS9754",
+          "CCDS58324"
+        ],
+        "ena": [
+          "U22431"
+        ],
+        "pubmed_id": [
+          8786149,
+          9079689
+        ],
+        "location_sortable": "14q23.2"
+      }
+    ]
+  }
+}

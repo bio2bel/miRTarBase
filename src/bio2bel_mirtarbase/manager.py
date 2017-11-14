@@ -211,6 +211,14 @@ class Manager(object):
 
         raise NotImplementedError
 
+    def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
+        """Gets an miRNA by its miRTarBase identifier
+
+        :param str mirtarbase_id: An miRTarBase identifier
+        :rtype: Optional[Mirna]
+        """
+        return self.session.query(Mirna).filter(Mirna.mirtarbase_id == mirtarbase_id).one_or_none()
+
     def query_targets(self, targets):
         """Find all targets
 
@@ -233,6 +241,14 @@ class Manager(object):
         :rtype: Optional[Target]
         """
         return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()
+
+    def query_target_by_hgnc_identifier(self, hgnc_id):
+        """Query for one target
+
+        :param str hgnc_id: HGNC gene identifier
+        :rtype: Optional[Target]
+        """
+        return self.session.query(Target).filter(Target.hgnc_id == hgnc_id).one_or_none()
 
 
 if __name__ == '__main__':

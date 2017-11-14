@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+
+from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 
 ENTREZ_GENE_ID = 'EGID'
 MIRTARBASE_ID = 'MIRTARBASE'
@@ -25,8 +26,8 @@ class Mirna(Base):
 
     id = Column(Integer, primary_key=True)
 
-    mirtarbase_id = Column(String, nullable=False, unique=True, doc="miRTarBase identifier")
-    mirtarbase_name = Column(String, nullable=False, doc="miRTarBase name")
+    mirtarbase_id = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase identifier")
+    mirtarbase_name = Column(String, nullable=False, index=True, doc="miRTarBase name")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
     species = relationship('Species')
@@ -54,10 +55,10 @@ class Target(Base):
     id = Column(Integer, primary_key=True)
 
     target_gene = Column(String, nullable=False, doc="Target gene name")
-    entrez_id = Column(String, nullable=False, unique=True, doc="Target gene Entrez ID")
+    entrez_id = Column(String, nullable=False, unique=True, index=True, doc="Entrez gene identifier")
 
-    hgnc_symbol = Column(String, nullable=True, doc="HGNC Gene Symbol")
-    hgnc_id = Column(String, nullable=True, doc="HGNC Gene Identifier")
+    hgnc_symbol = Column(String, nullable=True, index=True, doc="HGNC gene symbol")
+    hgnc_id = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
     species = relationship('Species')
@@ -118,6 +119,7 @@ class Species(Base):
 
     def __str__(self):
         return self.name
+
 
 class Evidence(Base):
     """Build Evidence table used to store MTI's and their evidence"""

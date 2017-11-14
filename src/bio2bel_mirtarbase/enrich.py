@@ -3,7 +3,6 @@
 import logging
 
 from pybel.constants import *
-
 from .manager import Manager
 
 log = logging.getLogger(__name__)
@@ -26,11 +25,20 @@ def enrich_rnas(graph, manager=None):
             continue
 
         if data[NAMESPACE] == 'HGNC':
-            target = manager.query_target_by_hgnc_symbol(data[NAME])
+            if IDENTIFIER in data:
+                target = manager.query_target_by_hgnc_identifier(data[IDENTIFIER])
+            elif NAME in data:
+                target = manager.query_target_by_hgnc_symbol(data[NAME])
+            else:
+                raise IndexError
 
-        elif data[NAMESPACE] == 'EGID':
-            target = manager.query_target_by_entrez_id(data[NAME])
-
+        elif data[NAMESPACE] in {'EGID', 'ENTREZ'}:
+            if IDENTIFIER in data:
+                target = manager.query_target_by_entrez_id(data[IDENTIFIER])
+            elif NAME in data:
+                target = manager.query_target_by_entrez_id(data[NAME])
+            else:
+                raise IndexError
         else:
             log.warning("Unable to map namespace: %s", data[NAMESPACE])
             continue
