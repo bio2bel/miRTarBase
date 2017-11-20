@@ -29,7 +29,7 @@ class Mirna(Base):
     mirtarbase_id = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase identifier")
     mirtarbase_name = Column(String, nullable=False, index=True, doc="miRTarBase name")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), doc='The host species')
     species = relationship('Species')
 
     def serialize_to_bel(self):
@@ -60,7 +60,7 @@ class Target(Base):
     hgnc_symbol = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene symbol")
     hgnc_id = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), doc='The host species')
     species = relationship('Species')
 
     def serialize_to_entrez_node(self):
@@ -115,7 +115,7 @@ class Species(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String, nullable=False, unique=True, index=True)
+    name = Column(String, nullable=False, unique=True, index=True, doc='The scientific name for the species')
 
     def __str__(self):
         return self.name
@@ -143,16 +143,17 @@ class Interaction(Base):
 
     id = Column(Integer, primary_key=True)
 
-    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)))
+    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)),
+                      doc='The miRTarBase identifier of the interacting miRNA')
     mirna = relationship("Mirna", backref="interactions")
 
-    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)))
+    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)),
+                       doc='The Entrez gene identifier of the interacting RNA')
     target = relationship("Target", backref="interactions")
 
-    evidence_id = Column(Integer, ForeignKey("{}.id".format(EVIDENCE_TABLE_NAME)))
+    evidence_id = Column(Integer, ForeignKey("{}.id".format(EVIDENCE_TABLE_NAME)), doc='The relevant evidence')
     evidence = relationship("Evidence", backref="interactions")
 
     __table_args__ = (
         UniqueConstraint('mirna_id', 'target_id', 'evidence_id'),
     )
-

@@ -42,7 +42,7 @@ def build_entrez_map(pyhgnc_connection=None):
     """
 
     :param Optional[str] pyhgnc_connection:
-    :rtype: dict[str,pyhgnc.HGNC]
+    :rtype: dict[str,pyhgnc.manager.models.HGNC]
     """
     log.info('getting entrez mapping')
 
