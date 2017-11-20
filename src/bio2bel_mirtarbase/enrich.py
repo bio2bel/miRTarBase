@@ -8,6 +8,13 @@ from .manager import Manager
 log = logging.getLogger(__name__)
 
 
+def get_name(data):
+    if NAME in data:
+        return data[NAME]
+    elif IDENTIFIER in data:
+        return data[IDENTIFIER]
+
+
 def enrich_rnas(graph, manager=None):
     """Adds all of the miRNA inhibitors of the proteins in the graph
 
@@ -24,7 +31,9 @@ def enrich_rnas(graph, manager=None):
         if NAMESPACE not in data:
             continue
 
-        if data[NAMESPACE] == 'HGNC':
+        namespace = data[NAMESPACE]
+
+        if namespace == 'HGNC':
             if IDENTIFIER in data:
                 target = manager.query_target_by_hgnc_identifier(data[IDENTIFIER])
             elif NAME in data:
@@ -32,7 +41,7 @@ def enrich_rnas(graph, manager=None):
             else:
                 raise IndexError
 
-        elif data[NAMESPACE] in {'EGID', 'ENTREZ'}:
+        elif namespace in {'EGID', 'ENTREZ'}:
             if IDENTIFIER in data:
                 target = manager.query_target_by_entrez_id(data[IDENTIFIER])
             elif NAME in data:
@@ -40,11 +49,11 @@ def enrich_rnas(graph, manager=None):
             else:
                 raise IndexError
         else:
-            log.warning("Unable to map namespace: %s", data[NAMESPACE])
+            log.warning("Unable to map namespace: %s", namespace)
             continue
 
         if target is None:
-            log.warning("Unable to find RNA: %s:%s", data[NAMESPACE], data[NAME])
+            log.warning("Unable to find RNA: %s:%s", namespace, get_name(data))
             continue
 
         for interaction in target.interactions:
