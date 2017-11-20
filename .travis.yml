@@ -1,13 +1,35 @@
 sudo: false
 cache: pip
 
+services:
+  - mysql
+
 language: python
 
 python:
     - 3.6
+    - 3.4
+
+env:
+  global:
+    - BIO2BEL_CONNECTION=mysql+pymysql://travis@localhost/bio2bel?charset=utf8'
+  matrix:
+    - TOXENV=py
+
+matrix:
+    include:
+        - python: 3.6
+          env: TOXENV=docs
+        - python: 3.6
+          env: TOXENV=manifest
+        - python: 3.6
+          env: TOXENV=rst-lint
 
 before_install:
     - pip install codecov
+    - pip install pymysql
+    - mysql -e 'CREATE DATABASE bio2bel CHARACTER SET utf8 COLLATE utf8_general_ci;'
+    - mysql -e "GRANT ALL PRIVILEGES ON bio2bel.* to 'travis'@'%' WITH GRANT OPTION;"
 
 install:
     - pip install tox
