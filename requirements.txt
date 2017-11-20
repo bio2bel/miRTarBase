@@ -2,6 +2,6 @@ pandas
 sqlalchemy
 xlrd
 pyhgnc
-pybel>=0.9.6
+pybel>=0.9.7
 click
 tqdm
