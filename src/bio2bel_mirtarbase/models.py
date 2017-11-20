@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from sqlalchemy import Column, ForeignKey, Integer, String
+from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -57,7 +57,7 @@ class Target(Base):
     target_gene = Column(String, nullable=False, doc="Target gene name")
     entrez_id = Column(String, nullable=False, unique=True, index=True, doc="Entrez gene identifier")
 
-    hgnc_symbol = Column(String, nullable=True, index=True, doc="HGNC gene symbol")
+    hgnc_symbol = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene symbol")
     hgnc_id = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)))
@@ -151,3 +151,8 @@ class Interaction(Base):
 
     evidence_id = Column(Integer, ForeignKey("{}.id".format(EVIDENCE_TABLE_NAME)))
     evidence = relationship("Evidence", backref="interactions")
+
+    __table_args__ = (
+        UniqueConstraint('mirna_id', 'target_id', 'evidence_id'),
+    )
+
