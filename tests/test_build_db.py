@@ -3,10 +3,11 @@
 import unittest
 
 from bio2bel_mirtarbase.enrich import enrich_rnas
+from bio2bel_mirtarbase.manager import build_entrez_map
 from bio2bel_mirtarbase.models import Evidence, Interaction, Mirna, Species, Target
 from pybel import BELGraph
+from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
 from pybel.dsl import *
-from pybel.constants import NAME, NAMESPACE, FUNCTION, MIRNA
 from pybel.parser.canonicalize import node_to_tuple
 from tests.constants import TemporaryCacheClassMixin, test_hgnc_path, test_xls_path
 
@@ -52,6 +53,24 @@ class TestBuildDB(TemporaryFilledCacheMixin):
 
     def test_count_hgnc(self):
         self.assertEqual(2, len(self.pyhgnc_manager.hgnc()))
+
+    def get_cxcr4_by_entrez(self):
+        model = self.pyhgnc_manager.hgnc(entrez='7852')
+        self.assertIsNotNone(model)
+        self.assertEqual('CXCR4', model.hgnc_symbol)
+        self.assertEqual('7852', model.entrez)
+
+    def get_hif1a_by_entrez(self):
+        model = self.pyhgnc_manager.hgnc(entrez='3091')
+        self.assertIsNotNone(model)
+        self.assertEqual('HIF1A', model.hgnc_symbol)
+        self.assertEqual('3091', model.entrez)
+
+    def test_build_map(self):
+        emap = build_entrez_map(pyhgnc_connection=self.pyhgnc_manager)
+        self.assertEqual(2, len(emap))
+        self.assertIn('7852', emap)
+        self.assertIn('3091', emap)
 
     def test_evidence(self):
         """Test the populate function of the database manager"""
@@ -133,6 +152,9 @@ class TestBuildDB(TemporaryFilledCacheMixin):
 
         :param dict node_data: A PyBEL data dictionary
         """
+        self.assertTrue(NAME in node_data or IDENTIFIER in node_data,
+                        msg='Node missing information: {}'.format(node_data))
+
         graph = BELGraph()
 
         hif1a_tuple = graph.add_node_from_data(node_data)

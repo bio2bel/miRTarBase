@@ -4,14 +4,15 @@ import configparser
 import logging
 import os
 import time
+from urllib.request import urlretrieve
 
 import pandas as pd
 import pyhgnc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
-from urllib.request import urlretrieve
-from bio2bel_mirtarbase.constants import CONFIG_FILE_PATH, DATA_URL, DEFAULT_CACHE_CONNECTION, DATA_DIR
+
+from bio2bel_mirtarbase.constants import CONFIG_FILE_PATH, DATA_DIR, DATA_URL, DEFAULT_CACHE_CONNECTION
 from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
 
 log = logging.getLogger(__name__)
@@ -35,6 +36,30 @@ def get_data(source=None):
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
     return df.drop(null_rows)
+
+
+def build_entrez_map(pyhgnc_connection=None):
+    """
+
+    :param Optional[str] pyhgnc_connection:
+    :rtype: dict[str,pyhgnc.HGNC]
+    """
+    log.info('getting entrez mapping')
+
+    if isinstance(pyhgnc_connection, pyhgnc.QueryManager):
+        pyhgnc_manager = pyhgnc_connection
+    else:
+        pyhgnc_manager = pyhgnc.QueryManager(connection=pyhgnc_connection)
+        log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
+
+    t = time.time()
+    emap = {
+        model.entrez: model
+        for model in pyhgnc_manager.hgnc()
+        if model.entrez
+    }
+    log.info('got entrez mapping in %.2f seconds', time.time() - t)
+    return emap
 
 
 class Manager(object):
@@ -121,16 +146,7 @@ class Manager(object):
         target_set = {}
         species_set = {}
 
-        log.info('getting entrez mapping')
-        pyhgnc_manager = pyhgnc.QueryManager(connection=pyhgnc_connection)
-        log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
-        t = time.time()
-        emap = {
-            model.entrez: model
-            for model in pyhgnc_manager.hgnc()
-            if model.entrez
-        }
-        log.info('got entrez mapping in %.2f seconds', time.time() - t)
+        emap = build_entrez_map(pyhgnc_connection=pyhgnc_connection)
 
         log.info('building models')
         t = time.time()
