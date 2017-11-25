@@ -8,19 +8,19 @@ from bio2bel_mirtarbase.manager import Manager
 from bio2bel_mirtarbase.models import *
 
 
-def add_admin_view(app, manager, url='/'):
-    admin = flask_admin.Admin(app, url=url)
-    admin.add_view(ModelView(Interaction, manager.session))
-    admin.add_view(ModelView(Mirna, manager.session))
-    admin.add_view(ModelView(Target, manager.session))
-    admin.add_view(ModelView(Evidence, manager.session))
+def add_admin(app, session, url=None):
+    admin = flask_admin.Admin(app, url=(url or '/'))
+    admin.add_view(ModelView(Interaction, session))
+    admin.add_view(ModelView(Mirna, session))
+    admin.add_view(ModelView(Target, session))
+    admin.add_view(ModelView(Evidence, session))
     return admin
 
 
-def get_app(connection=None):
+def get_app(connection=None, url=None):
     app = Flask(__name__)
     manager = Manager(connection=connection)
-    add_admin_view(app, manager)
+    add_admin(app, manager.session, url=url)
     return app
 
 
