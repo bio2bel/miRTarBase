@@ -7,11 +7,11 @@ from urllib.request import urlretrieve
 
 import pandas as pd
 import pyhgnc
-from bio2bel.utils import get_connection
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
+from bio2bel.utils import get_connection
 from bio2bel_mirtarbase.constants import DATA_DIR, DATA_URL, MODULE_NAME
 from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
 
