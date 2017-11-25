@@ -8,10 +8,21 @@ import setuptools
 
 PACKAGES = setuptools.find_packages(where='src')
 META_PATH = os.path.join('src', 'bio2bel_mirtarbase', '__init__.py')
+CLASSIFIERS = [
+    'Development Status :: 4 - Beta',
+    'Environment :: Console',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Science/Research',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.6',
+    'Topic :: Scientific/Engineering :: Bio-Informatics'
+]
 INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
     'pybel>=0.9.7',
+    'bio2bel',
     'pyhgnc',
     'xlrd',
     'click',
@@ -68,6 +79,7 @@ if __name__ == '__main__':
         maintainer=find_meta('author'),
         maintainer_email=find_meta('email'),
         license=find_meta('license'),
+        classifiers=CLASSIFIERS,
         packages=PACKAGES,
         package_dir={'': 'src'},
         install_requires=INSTALL_REQUIRES,

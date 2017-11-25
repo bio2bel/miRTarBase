@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import configparser
 import logging
 import os
 import time
@@ -8,11 +7,12 @@ from urllib.request import urlretrieve
 
 import pandas as pd
 import pyhgnc
+from bio2bel.utils import get_connection
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-from bio2bel_mirtarbase.constants import CONFIG_FILE_PATH, DATA_DIR, DATA_URL, DEFAULT_CACHE_CONNECTION
+from bio2bel_mirtarbase.constants import DATA_DIR, DATA_URL, MODULE_NAME
 from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
 
 log = logging.getLogger(__name__)
@@ -21,6 +21,10 @@ DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')
 
 
 def download_data(force_download=False):
+    """Downlaods the miRTarBase Excel sheet to a local path
+
+    :param bool force_download: If true, don't download the file again if it already exists
+    """
     if not os.path.exists(DATA_FILE_PATH) or force_download:
         urlretrieve(DATA_URL, DATA_FILE_PATH)
 
@@ -67,41 +71,13 @@ class Manager(object):
 
     def __init__(self, connection=None):
         """
-        :param str connection: The connection string
+        :param Optional[str] connection: The connection string
         """
-        self.connection = self.get_connection(connection)
+        self.connection = get_connection(MODULE_NAME, connection=connection)
         self.engine = create_engine(self.connection)
         self.session_maker = sessionmaker(bind=self.engine, autoflush=False, expire_on_commit=False)
         self.session = self.session_maker()
         self.create_all()
-
-    @staticmethod
-    def get_connection(connection=None):
-        """Return the SQLAlchemy connection string if it is set
-
-        :param connection: get the SQLAlchemy connection string
-        :rtype: str
-        """
-        if connection:
-            return connection
-
-        config = configparser.ConfigParser()
-
-        cfp = CONFIG_FILE_PATH
-
-        if os.path.exists(cfp):
-            log.info('fetch database configuration from {}'.format(cfp))
-            config.read(cfp)
-            connection = config['database']['sqlalchemy_connection_string']
-            log.info('load connection string from {}: {}'.format(cfp, connection))
-            return connection
-
-        with open(cfp, 'w') as config_file:
-            config['database'] = {'sqlalchemy_connection_string': DEFAULT_CACHE_CONNECTION}
-            config.write(config_file)
-            log.info('create configuration file {}'.format(cfp))
-
-        return DEFAULT_CACHE_CONNECTION
 
     def create_all(self, check_first=True):
         """Creates all tables"""
