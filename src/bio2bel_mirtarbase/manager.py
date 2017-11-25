@@ -21,7 +21,7 @@ DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')
 
 
 def download_data(force_download=False):
-    """Downlaods the miRTarBase Excel sheet to a local path
+    """Downloads the miRTarBase Excel sheet to a local path
 
     :param bool force_download: If true, don't download the file again if it already exists
     """
@@ -43,7 +43,7 @@ def get_data(source=None):
 
 
 def build_entrez_map(pyhgnc_connection=None):
-    """
+    """Builds a mapping from entrez gene identifiers to their database models from :py:mod:`PyHGNC`
 
     :param Optional[str] pyhgnc_connection:
     :rtype: dict[str,pyhgnc.manager.models.HGNC]
@@ -190,19 +190,6 @@ class Manager(object):
             self.session.rollback()
             log.exception('commit failed after %.2f seconds', time.time() - t)
 
-    def map_entrez_to_hgnc(self):
-        """Function to map entrez identifiers to HGNC identifiers"""
-        raise NotImplementedError
-
-    def query_MTIs(self, query_mir):
-        """Find all MTI's for a given miRTarBase identifier
-
-        :param query_mir: miRTarBase identifier of interest
-        :return targets: list of all targets of query_mir
-        """
-
-        raise NotImplementedError
-
     def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
         """Gets an miRNA by its miRTarBase identifier
 
@@ -211,10 +198,27 @@ class Manager(object):
         """
         return self.session.query(Mirna).filter(Mirna.mirtarbase_id == mirtarbase_id).one_or_none()
 
-    def query_targets(self, targets):
-        """Find all targets
+    def query_mirna_by_mirtarbase_name(self, name):
+        """Gets an miRNA by its miRTarBase name
 
-        :param list[str] targets: list of HGNC names
+        :param str name: An miRTarBase name
+        :rtype: Optional[Mirna]
+        """
+        return self.session.query(Mirna).filter(Mirna.mirtarbase_name == name).one_or_none()
+
+    def query_mirna_by_hgnc_identifier(self, hgnc_id):
+        """Query for a miRNA by its HGNC identifier
+
+        :param str hgnc_id: HGNC gene identifier
+        :rtype: Optional[Mirna]
+        """
+        raise NotImplementedError
+
+    def query_mirna_by_hgnc_symbol(self, hgnc_symbol):
+        """Query for a miRNA by its HGNC gene symbol
+
+        :param str hgnc_symbol: HGNC gene symbol
+        :rtype: Optional[Mirna]
         """
         raise NotImplementedError
 

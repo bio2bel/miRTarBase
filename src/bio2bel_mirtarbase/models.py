@@ -4,7 +4,8 @@ from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
+from pybel.constants import DIRECTLY_DECREASES
+from pybel.dsl import mirna, rna
 
 ENTREZ_GENE_ID = 'EGID'
 MIRTARBASE_ID = 'MIRTARBASE'
@@ -37,12 +38,7 @@ class Mirna(Base):
 
         :rtype: dict
         """
-        return {
-            FUNCTION: MIRNA,
-            NAMESPACE: MIRTARBASE_ID,
-            IDENTIFIER: self.mirtarbase_id,
-            NAME: self.mirtarbase_name
-        }
+        return mirna(namespace=MIRTARBASE_ID, identifier=self.mirtarbase_id, name=self.mirtarbase_name)
 
     def __str__(self):
         return self.mirtarbase_name
@@ -68,12 +64,7 @@ class Target(Base):
 
         :rtype: dict
         """
-        return {
-            FUNCTION: RNA,
-            NAMESPACE: ENTREZ_GENE_ID,
-            IDENTIFIER: self.entrez_id,
-            NAME: self.target_gene,
-        }
+        return rna(namespace=ENTREZ_GENE_ID, identifier=self.entrez_id, name=self.target_gene)
 
     def __str__(self):
         return self.target_gene
@@ -83,30 +74,26 @@ class Target(Base):
 
         :rtype: dict
         """
-        return {
-            FUNCTION: RNA,
-            NAMESPACE: 'HGNC',
-            IDENTIFIER: self.hgnc_id,
-            NAME: self.hgnc_symbol
-        }
+        return rna(namespace='HGNC', identifier=self.hgnc_id, name=self.hgnc_symbol)
 
-    def to_json(self):
+    def to_json(self, include_id=True):
         """Returns this object as JSON
 
         :rtype: dict
         """
-        return {
-            'id': self.id,
-            'species': self.species,
-            'HGNC': {
-                'symbol': self.hgnc_symbol,
-                'id': self.hgnc_id
-            },
-            'Entrez': {
-                'id': self.entrez_id,
-                'name': self.target_gene
-            }
+        rv = {
+
+            'species': self.species.to_json(),
+            'identifiers': [
+                self.serialize_to_entrez_node(),
+                self.serialize_to_hgnc_node()
+            ]
         }
+
+        if include_id:
+            rv['id'] = self.id
+
+        return rv
 
 
 class Species(Base):
@@ -116,6 +103,12 @@ class Species(Base):
     id = Column(Integer, primary_key=True)
 
     name = Column(String, nullable=False, unique=True, index=True, doc='The scientific name for the species')
+
+    def to_json(self, include_id=True):
+        rv = dict(name=self.name)
+        if include_id:
+            rv['id'] = self.id
+        return rv
 
     def __str__(self):
         return self.name
