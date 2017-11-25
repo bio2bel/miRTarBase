@@ -14,6 +14,7 @@ def add_admin(app, session, **kwargs):
     admin.add_view(ModelView(Mirna, session))
     admin.add_view(ModelView(Target, session))
     admin.add_view(ModelView(Evidence, session))
+    admin.add_view(ModelView(Species, session))
     return admin
 
 
