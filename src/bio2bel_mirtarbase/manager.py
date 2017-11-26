@@ -14,6 +14,7 @@ from tqdm import tqdm
 from bio2bel.utils import get_connection
 from bio2bel_mirtarbase.constants import DATA_DIR, DATA_URL, MODULE_NAME
 from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
+from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 
 log = logging.getLogger(__name__)
 
@@ -64,6 +65,13 @@ def build_entrez_map(pyhgnc_connection=None):
     }
     log.info('got entrez mapping in %.2f seconds', time.time() - t)
     return emap
+
+
+def get_name(data):
+    if NAME in data:
+        return data[NAME]
+    elif IDENTIFIER in data:
+        return data[IDENTIFIER]
 
 
 class Manager(object):
@@ -246,10 +254,110 @@ class Manager(object):
         """
         return self.session.query(Target).filter(Target.hgnc_id == hgnc_id).one_or_none()
 
+    def enrich_rnas(self, graph):
+        """Adds all of the miRNA inhibitors of the RNA nodes in the graph
 
-if __name__ == '__main__':
-    logging.basicConfig(level=20)
-    log.setLevel(20)
-    m = Manager()
-    m.drop_all()
-    m.populate()
+        :param pybel.BELGraph graph: A BEL graph
+        """
+        for node, data in graph.nodes(data=True):
+            if data[FUNCTION] != RNA:
+                continue
+
+            if NAMESPACE not in data:
+                continue
+
+            namespace = data[NAMESPACE]
+
+            if namespace == 'HGNC':
+                if IDENTIFIER in data:
+                    target = self.query_target_by_hgnc_identifier(data[IDENTIFIER])
+                elif NAME in data:
+                    target = self.query_target_by_hgnc_symbol(data[NAME])
+                else:
+                    raise IndexError
+
+            elif namespace in {'EGID', 'ENTREZ'}:
+                if IDENTIFIER in data:
+                    target = self.query_target_by_entrez_id(data[IDENTIFIER])
+                elif NAME in data:
+                    target = self.query_target_by_entrez_id(data[NAME])
+                else:
+                    raise IndexError
+            else:
+                log.warning("Unable to map namespace: %s", namespace)
+                continue
+
+            if target is None:
+                log.warning("Unable to find RNA: %s:%s", namespace, get_name(data))
+                continue
+
+            for interaction in target.interactions:
+                graph.add_qualified_edge(
+                    interaction.mirna.serialize_to_bel(),
+                    node,
+                    relation=DIRECTLY_DECREASES,
+                    evidence=interaction.evidence.support,
+                    citation=str(interaction.evidence.reference),
+                    annotations={
+                        'Experiment': interaction.evidence.experiment,
+                        'SupportType': interaction.evidence.support,
+                    }
+                )
+
+    def enrich_mirnas(self, graph):
+        """Adds all target RNAs to the miRNA nodes in the graph
+
+        :param pybel.BELGraph graph: A BEL graph
+        """
+        for node, data in graph.nodes(data=True):
+            if data[FUNCTION] != MIRNA:
+                continue
+
+            if NAMESPACE not in data:
+                continue
+
+            namespace = data[NAMESPACE]
+
+            if namespace == 'MIRTARBASE':
+                if IDENTIFIER in data:
+                    mirna = self.query_mirna_by_mirtarbase_identifier(data[IDENTIFIER])
+                elif NAME in data:
+                    mirna = self.query_mirna_by_mirtarbase_name(data[NAME])
+                else:
+                    raise IndexError
+
+            elif namespace == 'MIRBASE':
+                log.debug('not yet able to map miRBase')
+                continue
+
+            elif namespace == 'HGNC':
+                if IDENTIFIER in data:
+                    mirna = self.query_mirna_by_hgnc_identifier(data[IDENTIFIER])
+                elif NAME in data:
+                    mirna = self.query_mirna_by_hgnc_symbol(data[NAME])
+                else:
+                    raise IndexError
+
+            elif namespace in {'ENTREZ', 'EGID'}:
+                raise NotImplementedError
+
+            else:
+                log.warning("unable to map namespace: %s", namespace)
+                continue
+
+            if mirna is None:
+                log.warning("Unable to find miRNA: %s:%s", namespace, get_name(data))
+                continue
+
+            for interaction in mirna.interactions:
+                graph.add_qualified_edge(
+                    node,
+                    interaction.target.serialize_to_hgnc_node(),
+                    relation=DIRECTLY_DECREASES,
+                    evidence=interaction.evidence.support,
+                    citation=str(interaction.evidence.reference),
+                    annotations={
+                        'Experiment': interaction.evidence.experiment,
+                        'SupportType': interaction.evidence.support,
+                    }
+                )
