@@ -44,7 +44,7 @@ Links
     :target: https://codecov.io/gh/bio2bel/mirtarbase?branch=master
     :alt: Coverage Status
 
-.. |documentation| image:: https://readthedocs.org/projects/bio2bel_mirtarbase/badge
+.. |documentation| image:: https://readthedocs.org/projects/mirtarbase/badge/?version=latest
     :target: http://mirtarbase.readthedocs.io
     :alt: Documentation Status
 
