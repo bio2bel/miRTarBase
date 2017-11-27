@@ -205,6 +205,21 @@ class Manager(object):
         self.session.commit()
         log.info('committed after %.2f seconds', time.time() - t)
 
+    def count_targets(self):
+        return self.session.query(Target).count()
+
+    def count_mirnas(self):
+        return self.session.query(Mirna).count()
+
+    def count_interactions(self):
+        return self.session.query(Interaction).count()
+
+    def count_evidences(self):
+        return self.session.query(Evidence).count()
+
+    def count_species(self):
+        return self.session.query(Species).count()
+
     def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
         """Gets an miRNA by the miRTarBase interaction identifier.
 
@@ -271,7 +286,7 @@ class Manager(object):
 
         :param pybel.BELGraph graph: A BEL graph
         """
-        log.debug('enriching miRNA inhibitors')
+        log.debug('enriching inhibitors of RNA')
         count = 0
 
         for node, data in graph.nodes(data=True):
@@ -328,8 +343,10 @@ class Manager(object):
 
         :param pybel.BELGraph graph: A BEL graph
         """
-        log.debug('enriching miRNA inhibitors')
+        log.debug('enriching miRNA targets')
         count = 0
+
+        mirtarbase_names = set()
 
         for node, data in graph.nodes(data=True):
             if data[FUNCTION] != MIRNA:
@@ -342,49 +359,34 @@ class Manager(object):
 
             if namespace == 'MIRTARBASE':
                 if NAME in data:
-                    mirna = self.query_mirna_by_mirtarbase_name(data[NAME])
-                if IDENTIFIER in data:
-                    mirna = None
+                    mirtarbase_names.add(data[NAME])
                 else:
-                    raise IndexError
+                    raise IndexError('no usable identifier for {}'.format(data))
 
             elif namespace == 'MIRBASE':
                 log.debug('not yet able to map miRBase')
                 continue
 
             elif namespace == 'HGNC':
-                if IDENTIFIER in data:
-                    mirna = self.query_mirna_by_hgnc_identifier(data[IDENTIFIER])
-                elif NAME in data:
-                    mirna = self.query_mirna_by_hgnc_symbol(data[NAME])
-                else:
-                    raise IndexError
+                log.debug('not yet able to map HGNC')
+                continue
 
             elif namespace in {'ENTREZ', 'EGID'}:
-                raise NotImplementedError
+                log.debug('not yet able to map Entrez')
+                continue
 
             else:
-                log.warning("unable to map namespace: %s", namespace)
+                log.debug("unable to map namespace: %s", namespace)
                 continue
 
-            if mirna is None:
-                log.warning("Unable to find miRNA: %s:%s", namespace, get_name(data))
-                continue
+        if not mirtarbase_names:
+            log.debug('no mirnas found')
+            return
 
+        for mirna in self.session.query(Mirna).filter(Mirna.name.in_(mirtarbase_names)):
             for interaction in mirna.interactions:
                 for evidence in interaction.evidences:
                     count += 1
-
-                    graph.add_qualified_edge(
-                        node,
-                        interaction.target.serialize_to_hgnc_node(),
-                        relation=DIRECTLY_DECREASES,
-                        evidence=evidence.support,
-                        citation=str(evidence.reference),
-                        annotations={
-                            'Experiment': evidence.experiment,
-                            'SupportType': evidence.support,
-                        }
-                    )
+                    evidence.add_to_graph(graph)
 
         log.debug('added %d MTIs', count)

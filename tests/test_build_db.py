@@ -40,17 +40,16 @@ class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
 
 class TestBuildDatabase(TemporaryFilledCacheMixin):
     def test_count_mirnas(self):
-        self.assertEqual(5, self.manager.session.query(Mirna).count())
+        self.assertEqual(5, self.manager.count_mirnas())
 
     def test_count_targets(self):
-        self.assertEqual(6, self.manager.session.query(Target).count())
+        self.assertEqual(6, self.manager.count_targets())
 
     def test_count_interactions(self):
-        interactions = self.manager.session.query(Interaction).all()
-        self.assertEqual(6, len(interactions))
+        self.assertEqual(6, self.manager.count_interactions())
 
     def test_count_evidences(self):
-        self.assertEqual(10, self.manager.session.query(Evidence).count())
+        self.assertEqual(10, self.manager.count_evidences())
 
     def test_count_species(self):
         self.assertEqual(3, self.manager.session.query(Species).count())

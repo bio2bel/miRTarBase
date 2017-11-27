@@ -34,6 +34,17 @@ def drop(connection):
 
 
 @main.command()
+@click.option('-c', '--connection', help="Defaults to {}".format(DEFAULT_CACHE_CONNECTION))
+def summarize(connection):
+    """Drops the database"""
+    m = Manager(connection=connection)
+    click.echo('miRNAs: {}'.format(m.count_mirnas()))
+    click.echo('Targets: {}'.format(m.count_targets()))
+    click.echo('Species: {}'.format(m.count_species()))
+    click.echo('Interactions: {}'.format(m.count_interactions()))
+    click.echo('Evidences: {}'.format(m.count_evidences()))
+
+@main.command()
 @click.option('-c', '--connection', help='Defaults to {}'.format(DEFAULT_CACHE_CONNECTION))
 @click.option('-v', '--debug')
 @click.option('-p', '--port')

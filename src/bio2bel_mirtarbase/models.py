@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+from pybel.constants import DIRECTLY_DECREASES
 from pybel.dsl import mirna, rna
 
 ENTREZ_GENE_ID = 'EGID'
@@ -28,7 +29,7 @@ class Mirna(Base):
 
     name = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase name")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), doc='The host species')
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
 
     def serialize_to_bel(self):
@@ -51,31 +52,42 @@ class Target(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String, nullable=False, doc="Target gene name")
+    name = Column(String, nullable=False, index=True, doc="Target gene name")
     entrez_id = Column(String, nullable=False, unique=True, index=True, doc="Entrez gene identifier")
 
     hgnc_symbol = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene symbol")
     hgnc_id = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), doc='The host species')
+    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
+
+    def __str__(self):
+        return self.name
 
     def serialize_to_entrez_node(self):
         """Function to serialize to PyBEL node data dictionary.
 
         :rtype: dict
         """
-        return rna(namespace=ENTREZ_GENE_ID, identifier=self.entrez_id, name=self.name)
-
-    def __str__(self):
-        return self.name
+        return rna(
+            namespace=ENTREZ_GENE_ID,
+            identifier=str(self.entrez_id),
+            name=str(self.name)
+        )
 
     def serialize_to_hgnc_node(self):
         """Function to serialize to PyBEL node data dictionary.
 
         :rtype: dict
         """
-        return rna(namespace='HGNC', identifier=self.hgnc_id, name=self.hgnc_symbol)
+        if self.hgnc_id is None:
+            raise ValueError('missing HGNC information for Entrez Gene {}'.format(self.entrez_id))
+
+        return rna(
+            namespace='HGNC',
+            identifier=str(self.hgnc_id),
+            name=str(self.hgnc_symbol)
+        )
 
     def to_json(self, include_id=True):
         """Returns this object as JSON
@@ -83,7 +95,6 @@ class Target(Base):
         :rtype: dict
         """
         rv = {
-
             'species': self.species.to_json(),
             'identifiers': [
                 self.serialize_to_entrez_node(),
@@ -106,9 +117,13 @@ class Species(Base):
     name = Column(String, nullable=False, unique=True, index=True, doc='The scientific name for the species')
 
     def to_json(self, include_id=True):
-        rv = dict(name=self.name)
+        rv = {
+            'name': str(self.name)
+        }
+
         if include_id:
             rv['id'] = self.id
+
         return rv
 
     def __str__(self):
@@ -124,16 +139,17 @@ class Interaction(Base):
     mirtarbase_id = Column(String, nullable=False, unique=True, index=True,
                            doc="miRTarBase interaction identifier which is unique for a pair of miRNA and RNA targets")
 
-    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)),
+    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)), nullable=False, index=True,
                       doc='The miRTarBase identifier of the interacting miRNA')
     mirna = relationship("Mirna", backref="interactions")
 
-    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)),
+    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)), nullable=False, index=True,
                        doc='The Entrez gene identifier of the interacting RNA')
     target = relationship("Target", backref="interactions")
 
     __table_args__ = (
         UniqueConstraint('mirna_id', 'target_id'),
+        Index('interaction_idx', 'mirna_id', 'target_id', unique=True),
     )
 
     def __str__(self):
@@ -158,3 +174,21 @@ class Evidence(Base):
 
     def __str__(self):
         return '{}: {}'.format(self.reference, self.support)
+
+    def add_to_graph(self, graph):
+        try:
+            target_node = self.interaction.target.serialize_to_hgnc_node()
+        except ValueError:
+            target_node = self.interaction.target.serialize_to_entrez_node()
+
+        graph.add_qualified_edge(
+            self.interaction.mirna.serialize_to_bel(),
+            target_node,
+            relation=DIRECTLY_DECREASES,
+            evidence=str(self.support),
+            citation=str(self.reference),
+            annotations={
+                'Experiment': str(self.experiment),
+                'SupportType': str(self.support),
+            }
+        )
