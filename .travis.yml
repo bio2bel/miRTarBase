@@ -1,38 +1,39 @@
 sudo: false
 cache: pip
-
 services:
-  - mysql
-
+- mysql
 language: python
-
 python: 3.6
-
-
 env:
   global:
-    - BIO2BEL_CONNECTION=mysql+pymysql://travis@localhost/bio2bel?charset=utf8'
+  - BIO2BEL_CONNECTION=mysql+pymysql://travis@localhost/bio2bel?charset=utf8'
   matrix:
-    - TOXENV=py
-    - TOXENV=docs
-    - TOXENV=manifest
-    - TOXENV=rst-lint
-
+  - TOXENV=py
+  - TOXENV=docs
+  - TOXENV=manifest
+  - TOXENV=rst-lint
 before_install:
-    - pip install codecov
-    - pip install pymysql
-    - mysql -e 'CREATE DATABASE bio2bel CHARACTER SET utf8 COLLATE utf8_general_ci;'
-    - mysql -e "GRANT ALL PRIVILEGES ON bio2bel.* to 'travis'@'%' WITH GRANT OPTION;"
-
+- pip install codecov
+- pip install pymysql
+- mysql -e 'CREATE DATABASE bio2bel CHARACTER SET utf8 COLLATE utf8_general_ci;'
+- mysql -e "GRANT ALL PRIVILEGES ON bio2bel.* to 'travis'@'%' WITH GRANT OPTION;"
 install:
-    - pip install tox
-
+- pip install tox
 script:
-    - tox
-
+- tox
 after_success:
-    - tox -e coverage-report
-    - codecov
-
+- tox -e coverage-report
+- codecov
 notifications:
   slack: pybel:n2KbWKBum3musnBg3L76gGwq
+deploy:
+  password:
+    secure: l2rd1O4pb6H1Of6KYnH1Jw7k7iB2AuTyCmjBYANWol+z/DEC0KoQ4eHLgg9RHkSISY6CWzRvA/OOC2bTcgMa7hAjln/NHZvoSfqq7P0Dr/GLCKYqA2D7rcsAdgPMgWy9nsvVcc0vtSmKOu9JkGRFKRpnbvcHjzfIi87mmF7kFRA7IF6GaM+WXXeIAwg5v3vcHWCoqWptRPsGD3vxYAPVvqtfkb8JY6zOx15GfhQFvJldnyMUiYFVNJeTYRd6CYmZPlVd+7/FFCs/rGfLTH9HsIQcC4ZP7eEAWuZcx60tNZE8uk5OsGEyoJhJMGDiEp9xV3w9CruP/O4t7wSQbdTsiV/0zli3AJ1ObbE/9LLoBXw2Ya46BKMCrySgKejep7FpchifR4St2KrJBmJX+1XNvtuDse2Uvpjo/6rGlyZxQMASxup4QzIdFY+jJFm7fbI1b20+MRvnTelPAw4Qbb74Ufx1v7JzbUEWh91FmkyY1ZVLsGTqSexJnTwlvd6xHEpMwsmQrqVqKZmZeG1iVaPNqIYAxb6c9DAfzl6NzzU01ZNXDULi+00B27URD1vWc/atvG59i31l5c7n5D842L7vxlcOZgX9BP+bOFht6bJQMrk9lVQMZt/nHH96XcJ8khDCTTcXQVX1164qboJ3GnsxCaS+ie2sVcJz5qAxkeUc6F8=
+  user:
+    secure: ZSygVgPt1YTuAVkKR5lpsxl9ikDY0rUvSe+VFQVCnUtyqu4H/APpXN/htdgsqQkaWr6NFOawmXCVUITpf48Qq6PEWbeilmV8q8vMo8JZe3j+XG8hmcS9vn8Zw6t3ZUZu8S2vsbC34PBjphpFjwYfJ/1i264pvlzUQyoWHYTrvmIego5oSP2FLPVRbDhF9JZ03PSSl+l2NcE2x/H9zc0/yyrdS5MkCmG4tN0YMxVJexztRT0kuUE70DPcnnNzcsR3l2nrsCcguZF9f1+NduAt8P0F0jiHyZmmgEHMFvzKVciia4usKLxu5yia17xo8aTvnctBypLnqO9Sraq5xObPWCi2EWDLwsISosWvwNQU++SqJyA+vmhNeFhwzLVbqBZXrFYITIvGwX/SyjQY9nVd8A6qYAXhBgV6Og3U9bCNSPWN6mOfhxb3JKj8zygPlNpxxEOhe1l3jdNlb6hiqmqeQwJt3nDorVlRwLlwaz9ErTWZkh//PFE5kEGLIIcRZ5nE9nUTH7di+EJ444BxAmcJBTagudRRe9v/ue38gALcXzJa20B/6n1S4kYs2FVFJJRQcspHC9/3/LufJpW9cBy2ou+roD68zfnQNKahxwgOIq1T1raobGNDy5d8pJ0tcFDris2zSgHQdZgop7REFJQhop1GrDRxIX6RLKkL6i0Hj+k=
+  provider: pypi
+  distributions: "sdist bdist_wheel"
+  on:
+    tags: true
+     repo: bio2bel/mirtarbase
+     branch: master
