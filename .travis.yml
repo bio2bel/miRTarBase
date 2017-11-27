@@ -35,5 +35,5 @@ deploy:
   distributions: "sdist bdist_wheel"
   on:
     tags: true
-     repo: bio2bel/mirtarbase
-     branch: master
+    repo: bio2bel/mirtarbase
+    branch: master
