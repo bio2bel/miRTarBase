@@ -16,7 +16,8 @@ CLASSIFIERS = [
     'Operating System :: OS Independent',
     'Programming Language :: Python',
     'Programming Language :: Python :: 3.6',
-    'Topic :: Scientific/Engineering :: Bio-Informatics'
+    'Topic :: Scientific/Engineering :: Bio-Informatics',
+    'License :: OSI Approved :: MIT License',
 ]
 INSTALL_REQUIRES = [
     'pandas',
