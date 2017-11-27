@@ -4,11 +4,10 @@ from sqlalchemy import Column, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from pybel.constants import DIRECTLY_DECREASES
 from pybel.dsl import mirna, rna
 
 ENTREZ_GENE_ID = 'EGID'
-MIRTARBASE_ID = 'MIRTARBASE'
+MIRTARBASE = 'MIRTARBASE'
 
 MIRTARBASE_PREFIX = 'mirtarbase'
 MIRNA_TABLE_NAME = '{}_mirna'.format(MIRTARBASE_PREFIX)
@@ -27,8 +26,7 @@ class Mirna(Base):
 
     id = Column(Integer, primary_key=True)
 
-    mirtarbase_id = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase identifier")
-    mirtarbase_name = Column(String, nullable=False, index=True, doc="miRTarBase name")
+    name = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase name")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), doc='The host species')
     species = relationship('Species')
@@ -38,7 +36,10 @@ class Mirna(Base):
 
         :rtype: dict
         """
-        return mirna(namespace=MIRTARBASE_ID, identifier=self.mirtarbase_id, name=self.mirtarbase_name)
+        return mirna(
+            namespace=MIRTARBASE,
+            name=str(self.name)
+        )
 
     def __str__(self):
         return self.mirtarbase_name
@@ -50,7 +51,7 @@ class Target(Base):
 
     id = Column(Integer, primary_key=True)
 
-    target_gene = Column(String, nullable=False, doc="Target gene name")
+    name = Column(String, nullable=False, doc="Target gene name")
     entrez_id = Column(String, nullable=False, unique=True, index=True, doc="Entrez gene identifier")
 
     hgnc_symbol = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene symbol")
@@ -64,10 +65,10 @@ class Target(Base):
 
         :rtype: dict
         """
-        return rna(namespace=ENTREZ_GENE_ID, identifier=self.entrez_id, name=self.target_gene)
+        return rna(namespace=ENTREZ_GENE_ID, identifier=self.entrez_id, name=self.name)
 
     def __str__(self):
-        return self.target_gene
+        return self.name
 
     def serialize_to_hgnc_node(self):
         """Function to serialize to PyBEL node data dictionary.
@@ -114,6 +115,31 @@ class Species(Base):
         return self.name
 
 
+class Interaction(Base):
+    """Build Interaction table used to store miRNA and target relations"""
+    __tablename__ = INTERACTION_TABLE_NAME
+
+    id = Column(Integer, primary_key=True)
+
+    mirtarbase_id = Column(String, nullable=False, unique=True, index=True,
+                           doc="miRTarBase interaction identifier which is unique for a pair of miRNA and RNA targets")
+
+    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)),
+                      doc='The miRTarBase identifier of the interacting miRNA')
+    mirna = relationship("Mirna", backref="interactions")
+
+    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)),
+                       doc='The Entrez gene identifier of the interacting RNA')
+    target = relationship("Target", backref="interactions")
+
+    __table_args__ = (
+        UniqueConstraint('mirna_id', 'target_id'),
+    )
+
+    def __str__(self):
+        return '{} =| {}'.format(self.mirna.name, self.target.name)
+
+
 class Evidence(Base):
     """Build Evidence table used to store MTI's and their evidence"""
     __tablename__ = EVIDENCE_TABLE_NAME
@@ -126,27 +152,9 @@ class Evidence(Base):
                      doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
     reference = Column(String, nullable=False, doc="Reference PubMed Identifier")
 
+    interaction_id = Column(Integer, ForeignKey("{}.id".format(INTERACTION_TABLE_NAME)),
+                            doc='The interaction for which this evidence was captured')
+    interaction = relationship("Interaction", backref="evidences")
+
     def __str__(self):
         return '{}: {}'.format(self.reference, self.support)
-
-
-class Interaction(Base):
-    """Build Interaction table used to store miRNA and target relations"""
-    __tablename__ = INTERACTION_TABLE_NAME
-
-    id = Column(Integer, primary_key=True)
-
-    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)),
-                      doc='The miRTarBase identifier of the interacting miRNA')
-    mirna = relationship("Mirna", backref="interactions")
-
-    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)),
-                       doc='The Entrez gene identifier of the interacting RNA')
-    target = relationship("Target", backref="interactions")
-
-    evidence_id = Column(Integer, ForeignKey("{}.id".format(EVIDENCE_TABLE_NAME)), doc='The relevant evidence')
-    evidence = relationship("Evidence", backref="interactions")
-
-    __table_args__ = (
-        UniqueConstraint('mirna_id', 'target_id', 'evidence_id'),
-    )

@@ -6,11 +6,11 @@ import time
 from urllib.request import urlretrieve
 
 import pandas as pd
-import pyhgnc
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
+import pyhgnc
 from bio2bel.utils import get_connection
 from bio2bel_mirtarbase.constants import DATA_DIR, DATA_URL, MODULE_NAME
 from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
@@ -126,85 +126,97 @@ class Manager(object):
         df = get_data(source)
         log.info('got data in %.2f seconds', time.time() - t)
 
-        mirna_set = {}
+        name_mirna = {}
         target_set = {}
         species_set = {}
+        interaction_set = {}
 
         emap = build_entrez_map(pyhgnc_connection=pyhgnc_connection)
 
         log.info('building models')
         t = time.time()
-        for (index, mirtarbase_id, mirtarbase_name, mirna_species, target, entrez, taret_species, exp, sup_type,
+        for (index, mirtarbase_id, mirna_name, mirna_species, gene_name, entrez_id, target_species, exp, sup_type,
              pubmed) in tqdm(df.itertuples(), total=len(df.index)):
             # create new miRNA instance
-            if mirtarbase_id not in mirna_set:
 
-                species = species_set.get(mirna_species)
+            entrez_id = str(int(entrez_id))
 
-                if species is None:
-                    species = species_set[mirna_species] = Species(name=mirna_species)
-                    self.session.add(species)
+            interaction_key = (mirna_name, entrez_id)
+            interaction = interaction_set.get(interaction_key)
 
-                new_mirna = Mirna(
+            if interaction is None:
+                mirna = name_mirna.get(mirna_name)
+
+                if mirna is None:
+                    species = species_set.get(mirna_species)
+
+                    if species is None:
+                        species = species_set[mirna_species] = Species(name=mirna_species)
+                        self.session.add(species)
+
+                    mirna = name_mirna[mirna_name] = Mirna(
+                        name=mirna_name,
+                        species=species
+                    )
+                    self.session.add(mirna)
+
+                target = target_set.get(entrez_id)
+                if target is None:
+                    species = species_set.get(target_species)
+
+                    if species is None:
+                        species = species_set[target_species] = Species(name=target_species)
+                        self.session.add(species)
+
+                    target = target_set[entrez_id] = Target(
+                        entrez_id=entrez_id,
+                        species=species,
+                        name=gene_name,
+                    )
+
+                    if entrez_id in emap:
+                        g_first = emap[entrez_id]
+                        target.hgnc_symbol = g_first.symbol
+                        target.hgnc_id = str(g_first.identifier)
+
+                    self.session.add(target)
+
+                # create new interaction instance
+                interaction = interaction_set[interaction_key] = Interaction(
                     mirtarbase_id=mirtarbase_id,
-                    mirtarbase_name=mirtarbase_name,
-                    species=species
+                    mirna=mirna,
+                    target=target
                 )
-                self.session.add(new_mirna)
-                mirna_set[mirtarbase_id] = new_mirna
-
-            entrez = str(int(entrez))
-
-            # create new target instance
-            if entrez not in target_set:
-                species = species_set.get(taret_species)
-
-                if species is None:
-                    species = species_set[taret_species] = Species(name=taret_species)
-                    self.session.add(species)
-
-                new_target = Target(
-                    entrez_id=entrez,
-                    species=species,
-                    target_gene=target,
-                )
-
-                if entrez in emap:
-                    g_first = emap[entrez]
-                    new_target.hgnc_symbol = g_first.symbol
-                    new_target.hgnc_id = str(g_first.identifier)
-
-                self.session.add(new_target)
-                target_set[entrez] = new_target
+                self.session.add(interaction)
 
             # create new evidence instance
-            new_evidence = Evidence(experiment=exp, support=sup_type, reference=pubmed)
+            new_evidence = Evidence(
+                experiment=exp,
+                support=sup_type,
+                reference=pubmed,
+                interaction=interaction,
+            )
             self.session.add(new_evidence)
-
-            # create new interaction instance
-            new_interaction = Interaction(mirna=mirna_set[mirtarbase_id], target=target_set[entrez],
-                                          evidence=new_evidence)
-            self.session.add(new_interaction)
 
         log.info('built models in %.2f seconds', time.time() - t)
 
         log.info('committing models')
         t = time.time()
-
-        try:
-            self.session.commit()
-            log.info('committed after %.2f seconds', time.time() - t)
-        except:
-            self.session.rollback()
-            log.exception('commit failed after %.2f seconds', time.time() - t)
+        self.session.commit()
+        log.info('committed after %.2f seconds', time.time() - t)
 
     def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
-        """Gets an miRNA by its miRTarBase identifier
+        """Gets an miRNA by the miRTarBase interaction identifier.
 
-        :param str mirtarbase_id: An miRTarBase identifier
+        :param str mirtarbase_id: An miRTarBase interaction identifier
         :rtype: Optional[Mirna]
         """
-        return self.session.query(Mirna).filter(Mirna.mirtarbase_id == mirtarbase_id).one_or_none()
+        interaction = self.session.query(Interaction).filter(Interaction.mirtarbase_id == mirtarbase_id).one_or_none()
+
+        if interaction is None:
+            return
+
+        return interaction.mirna
 
     def query_mirna_by_mirtarbase_name(self, name):
         """Gets an miRNA by its miRTarBase name
@@ -212,7 +224,7 @@ class Manager(object):
         :param str name: An miRTarBase name
         :rtype: Optional[Mirna]
         """
-        return self.session.query(Mirna).filter(Mirna.mirtarbase_name == name).one_or_none()
+        return self.session.query(Mirna).filter(Mirna.name == name).one_or_none()
 
     def query_mirna_by_hgnc_identifier(self, hgnc_id):
         """Query for a miRNA by its HGNC identifier
@@ -259,6 +271,9 @@ class Manager(object):
 
         :param pybel.BELGraph graph: A BEL graph
         """
+        log.debug('enriching miRNA inhibitors')
+        count = 0
+
         for node, data in graph.nodes(data=True):
             if data[FUNCTION] != RNA:
                 continue
@@ -292,23 +307,30 @@ class Manager(object):
                 continue
 
             for interaction in target.interactions:
-                graph.add_qualified_edge(
-                    interaction.mirna.serialize_to_bel(),
-                    node,
-                    relation=DIRECTLY_DECREASES,
-                    evidence=interaction.evidence.support,
-                    citation=str(interaction.evidence.reference),
-                    annotations={
-                        'Experiment': interaction.evidence.experiment,
-                        'SupportType': interaction.evidence.support,
-                    }
-                )
+                for evidence in interaction.evidences:
+                    count += 1
+                    graph.add_qualified_edge(
+                        interaction.mirna.serialize_to_bel(),
+                        node,
+                        relation=DIRECTLY_DECREASES,
+                        evidence=evidence.support,
+                        citation=str(evidence.reference),
+                        annotations={
+                            'Experiment': evidence.experiment,
+                            'SupportType': evidence.support,
+                        }
+                    )
+
+        log.debug('added %d MTIs', count)
 
     def enrich_mirnas(self, graph):
         """Adds all target RNAs to the miRNA nodes in the graph
 
         :param pybel.BELGraph graph: A BEL graph
         """
+        log.debug('enriching miRNA inhibitors')
+        count = 0
+
         for node, data in graph.nodes(data=True):
             if data[FUNCTION] != MIRNA:
                 continue
@@ -319,10 +341,10 @@ class Manager(object):
             namespace = data[NAMESPACE]
 
             if namespace == 'MIRTARBASE':
-                if IDENTIFIER in data:
-                    mirna = self.query_mirna_by_mirtarbase_identifier(data[IDENTIFIER])
-                elif NAME in data:
+                if NAME in data:
                     mirna = self.query_mirna_by_mirtarbase_name(data[NAME])
+                if IDENTIFIER in data:
+                    mirna = None
                 else:
                     raise IndexError
 
@@ -350,14 +372,19 @@ class Manager(object):
                 continue
 
             for interaction in mirna.interactions:
-                graph.add_qualified_edge(
-                    node,
-                    interaction.target.serialize_to_hgnc_node(),
-                    relation=DIRECTLY_DECREASES,
-                    evidence=interaction.evidence.support,
-                    citation=str(interaction.evidence.reference),
-                    annotations={
-                        'Experiment': interaction.evidence.experiment,
-                        'SupportType': interaction.evidence.support,
-                    }
-                )
+                for evidence in interaction.evidences:
+                    count += 1
+
+                    graph.add_qualified_edge(
+                        node,
+                        interaction.target.serialize_to_hgnc_node(),
+                        relation=DIRECTLY_DECREASES,
+                        evidence=evidence.support,
+                        citation=str(evidence.reference),
+                        annotations={
+                            'Experiment': evidence.experiment,
+                            'SupportType': evidence.support,
+                        }
+                    )
+
+        log.debug('added %d MTIs', count)

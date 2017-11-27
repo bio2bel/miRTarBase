@@ -38,15 +38,19 @@ class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
         cls.manager.populate(test_xls_path, pyhgnc_connection=cls.connection)
 
 
-class TestBuildDB(TemporaryFilledCacheMixin):
+class TestBuildDatabase(TemporaryFilledCacheMixin):
     def test_count_mirnas(self):
         self.assertEqual(5, self.manager.session.query(Mirna).count())
 
     def test_count_targets(self):
-        self.assertEqual(5, self.manager.session.query(Target).count())
+        self.assertEqual(6, self.manager.session.query(Target).count())
 
     def test_count_interactions(self):
-        self.assertEqual(9, self.manager.session.query(Interaction).count())
+        interactions = self.manager.session.query(Interaction).all()
+        self.assertEqual(6, len(interactions))
+
+    def test_count_evidences(self):
+        self.assertEqual(10, self.manager.session.query(Evidence).count())
 
     def test_count_species(self):
         self.assertEqual(3, self.manager.session.query(Species).count())
@@ -84,8 +88,8 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         :type model: Mirna
         """
         self.assertIsNotNone(model)
-        self.assertEqual("mmu-miR-124-3p", model.mirtarbase_name)
-        self.assertEqual('MIRT000005', model.mirtarbase_id)
+        self.assertEqual("mmu-miR-124-3p", model.name)
+        self.assertTrue(any('MIRT000005' == interaction.mirtarbase_id for interaction in model.interactions))
 
         bel_data = model.serialize_to_bel()
 
@@ -103,8 +107,9 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         :type model: Mirna
         """
         self.assertIsNotNone(model)
-        self.assertEqual("hsa-miR-20a-5p", model.mirtarbase_name)
-        self.assertEqual('MIRT000002', model.mirtarbase_id)
+        self.assertEqual("hsa-miR-20a-5p", model.name)
+        self.assertEqual(2, len(model.interactions))
+        self.assertTrue(any('MIRT000002' == interaction.mirtarbase_id for interaction in model.interactions))
 
         bel_data = model.serialize_to_bel()
 
@@ -119,7 +124,7 @@ class TestBuildDB(TemporaryFilledCacheMixin):
     def test_target(self):
         target = self.manager.query_target_by_entrez_id('7852')
         self.assertIsNotNone(target)
-        self.assertEqual("CXCR4", target.target_gene)
+        self.assertEqual("CXCR4", target.name)
         self.assertEqual("2561", target.hgnc_id)
 
     def check_hif1a(self, model):
@@ -128,12 +133,12 @@ class TestBuildDB(TemporaryFilledCacheMixin):
         :type model: Target
         """
         self.assertIsNotNone(model)
-        self.assertEqual('HIF1A', model.target_gene)
+        self.assertEqual('HIF1A', model.name)
         self.assertEqual('4910', model.hgnc_id)
         self.assertEqual('HIF1A', model.hgnc_symbol)
         self.assertEqual('3091', model.entrez_id)
 
-        self.assertEqual(3, len(model.interactions))  # all different evidences to hsa-miR-20a-5p
+        self.assertEqual(1, len(model.interactions))  # all different evidences to hsa-miR-20a-5p
 
     def test_target_by_entrez(self):
         model = self.manager.query_target_by_entrez_id('3091')
