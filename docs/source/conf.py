@@ -52,7 +52,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'Bio2BEL miRTarBase'
-copyright = '2017, Charles Tapley Hoyt and Colin Birkenbihl'
+copyright = '2017-2018, Charles Tapley Hoyt and Colin Birkenbihl'
 author = 'Charles Tapley Hoyt and Colin Birkenbihl'
 
 # The version info for the project you're documenting, acts as replacement for
