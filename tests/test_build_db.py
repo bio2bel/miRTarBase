@@ -4,11 +4,11 @@ import unittest
 
 from bio2bel_mirtarbase.enrich import enrich_rnas
 from bio2bel_mirtarbase.manager import build_entrez_map
-from bio2bel_mirtarbase.models import Evidence, Interaction, Mirna, Species, Target
+from bio2bel_mirtarbase.models import Evidence, Mirna, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
 from pybel.dsl import *
-from pybel.parser.canonicalize import node_to_tuple
+from pybel.tokens import node_to_tuple
 from tests.constants import TemporaryCacheClassMixin, test_hgnc_path, test_xls_path
 
 hif1a_symbol = 'HIF1A'

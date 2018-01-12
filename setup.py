@@ -22,7 +22,7 @@ CLASSIFIERS = [
 INSTALL_REQUIRES = [
     'pandas',
     'sqlalchemy',
-    'pybel>=0.9.7',
+    'pybel>=0.10.1',
     'bio2bel',
     'pyhgnc',
     'xlrd',
