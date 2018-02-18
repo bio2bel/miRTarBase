@@ -4,8 +4,8 @@ import flask_admin
 from flask import Flask
 from flask_admin.contrib.sqla import ModelView
 
-from bio2bel_mirtarbase.manager import Manager
-from bio2bel_mirtarbase.models import *
+from .manager import Manager
+from .models import *
 
 
 def add_admin(app, session, **kwargs):
@@ -20,7 +20,7 @@ def add_admin(app, session, **kwargs):
 
 def get_app(connection=None, url=None):
     app = Flask(__name__)
-    manager = Manager(connection=connection)
+    manager = Manager.ensure(connection=connection)
     add_admin(app, manager.session, url=url)
     return app
 
