@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 @click.group()
 @click.option('-c', '--connection', help='Defaults to {}'.format(DEFAULT_CACHE_CONNECTION))
 @click.pass_context
-def main(ctx):
+def main(ctx, connection):
     """miRTarBase to BEL"""
     logging.basicConfig(level=logging.INFO)
     log.setLevel(logging.INFO)
@@ -43,6 +43,7 @@ def summarize(manager):
     click.echo('Species: {}'.format(manager.count_species()))
     click.echo('Interactions: {}'.format(manager.count_interactions()))
     click.echo('Evidences: {}'.format(manager.count_evidences()))
+
 
 @main.command()
 @click.option('-v', '--debug')
