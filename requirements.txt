@@ -6,3 +6,5 @@ pybel>=0.10.1
 bio2bel
 click
 tqdm
+flask[web]
+flask_admin[web]
