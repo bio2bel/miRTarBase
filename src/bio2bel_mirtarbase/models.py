@@ -27,7 +27,7 @@ class Mirna(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String, nullable=False, unique=True, index=True, doc="miRTarBase name")
+    name = Column(String(31), nullable=False, unique=True, index=True, doc="miRTarBase name")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
@@ -52,11 +52,11 @@ class Target(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String, nullable=False, index=True, doc="Target gene name")
-    entrez_id = Column(String, nullable=False, unique=True, index=True, doc="Entrez gene identifier")
+    name = Column(String(63), nullable=False, index=True, doc="Target gene name")
+    entrez_id = Column(String(32), nullable=False, unique=True, index=True, doc="Entrez gene identifier")
 
-    hgnc_symbol = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene symbol")
-    hgnc_id = Column(String, nullable=True, unique=True, index=True, doc="HGNC gene identifier")
+    hgnc_symbol = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene symbol")
+    hgnc_id = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
@@ -114,9 +114,13 @@ class Species(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String, nullable=False, unique=True, index=True, doc='The scientific name for the species')
+    name = Column(String(255), nullable=False, unique=True, index=True, doc='The scientific name for the species')
 
     def to_json(self, include_id=True):
+        """
+        :param bool include_id:
+        :rtype: dict
+        """
         rv = {
             'name': str(self.name)
         }
@@ -136,7 +140,7 @@ class Interaction(Base):
 
     id = Column(Integer, primary_key=True)
 
-    mirtarbase_id = Column(String, nullable=False, unique=True, index=True,
+    mirtarbase_id = Column(String(64), nullable=False, unique=True, index=True,
                            doc="miRTarBase interaction identifier which is unique for a pair of miRNA and RNA targets")
 
     mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)), nullable=False, index=True,
@@ -162,11 +166,11 @@ class Evidence(Base):
 
     id = Column(Integer, primary_key=True)
 
-    experiment = Column(String, nullable=False,
+    experiment = Column(String(255), nullable=False,
                         doc="Experiments made to find miRNA - target interaction. E.g. 'Luciferase reporter assay//qRT-PCR//Western blot'")
-    support = Column(String, nullable=False,
+    support = Column(String(255), nullable=False,
                      doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
-    reference = Column(String, nullable=False, doc="Reference PubMed Identifier")
+    reference = Column(String(255), nullable=False, doc="Reference PubMed Identifier")
 
     interaction_id = Column(Integer, ForeignKey("{}.id".format(INTERACTION_TABLE_NAME)),
                             doc='The interaction for which this evidence was captured')
@@ -176,6 +180,10 @@ class Evidence(Base):
         return '{}: {}'.format(self.reference, self.support)
 
     def add_to_graph(self, graph):
+        """Adds this edge to the BEL graph
+
+        :param pybel.BELGraph graph:
+        """
         try:
             target_node = self.interaction.target.serialize_to_hgnc_node()
         except ValueError:
