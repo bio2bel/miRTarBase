@@ -11,48 +11,48 @@ log = logging.getLogger(__name__)
 
 
 @click.group()
-def main():
+@click.option('-c', '--connection', help='Defaults to {}'.format(DEFAULT_CACHE_CONNECTION))
+@click.pass_context
+def main(ctx):
     """miRTarBase to BEL"""
     logging.basicConfig(level=logging.INFO)
     log.setLevel(logging.INFO)
+    ctx.obj = Manager(connection=connection)
 
 
 @main.command()
-@click.option('-c', '--connection', help="Defaults to {}".format(DEFAULT_CACHE_CONNECTION))
-def populate(connection):
+@click.pass_obj
+def populate(manager):
     """Populates the database"""
-    m = Manager(connection=connection)
-    m.populate()
+    manager.populate()
 
 
 @main.command()
-@click.option('-c', '--connection', help="Defaults to {}".format(DEFAULT_CACHE_CONNECTION))
-def drop(connection):
+@click.pass_obj
+def drop(manager):
     """Drops the database"""
-    m = Manager(connection=connection)
-    m.drop_all()
+    manager.drop_all()
 
 
 @main.command()
-@click.option('-c', '--connection', help="Defaults to {}".format(DEFAULT_CACHE_CONNECTION))
-def summarize(connection):
+@click.pass_obj
+def summarize(manager):
     """Drops the database"""
-    m = Manager(connection=connection)
-    click.echo('miRNAs: {}'.format(m.count_mirnas()))
-    click.echo('Targets: {}'.format(m.count_targets()))
-    click.echo('Species: {}'.format(m.count_species()))
-    click.echo('Interactions: {}'.format(m.count_interactions()))
-    click.echo('Evidences: {}'.format(m.count_evidences()))
+    click.echo('miRNAs: {}'.format(manager.count_mirnas()))
+    click.echo('Targets: {}'.format(manager.count_targets()))
+    click.echo('Species: {}'.format(manager.count_species()))
+    click.echo('Interactions: {}'.format(manager.count_interactions()))
+    click.echo('Evidences: {}'.format(manager.count_evidences()))
 
 @main.command()
-@click.option('-c', '--connection', help='Defaults to {}'.format(DEFAULT_CACHE_CONNECTION))
 @click.option('-v', '--debug')
 @click.option('-p', '--port')
 @click.option('-h', '--host')
-def web(connection, debug, port, host):
+@click.pass_obj
+def web(manager, debug, port, host):
     """Run the admin interface"""
     from .web import get_app
-    app = get_app(connection=connection)
+    app = get_app(connection=manager)
     app.run(debug=debug, port=port, host=host)
 
 
