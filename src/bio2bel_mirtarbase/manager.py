@@ -206,19 +206,52 @@ class Manager(object):
         log.info('committed after %.2f seconds', time.time() - t)
 
     def count_targets(self):
+        """Counts the number of targets in the database
+
+        :rtype: int
+        """
         return self.session.query(Target).count()
 
     def count_mirnas(self):
+        """Counts the number of miRNAs in the database
+
+        :rtype: int
+        """
         return self.session.query(Mirna).count()
 
     def count_interactions(self):
+        """Counts the number of interactions in the database
+
+        :rtype: int
+        """
         return self.session.query(Interaction).count()
 
     def count_evidences(self):
+        """Counts the number of evidences in the database
+
+        :rtype: int
+        """
         return self.session.query(Evidence).count()
 
     def count_species(self):
+        """Counts the number of species in the database
+
+        :rtype: int
+        """
         return self.session.query(Species).count()
+
+    def summarize(self):
+        """Returns a summary dictionary over the content of the database
+
+        :rtype: dict[str,int]
+        """
+        return dict(
+            targets=self.count_targets(),
+            mirnas=self.count_mirnas(),
+            species=self.count_species(),
+            interactions=self.count_interactions(),
+            evidences=self.count_evidences(),
+        )
 
     def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
         """Gets an miRNA by the miRTarBase interaction identifier.
