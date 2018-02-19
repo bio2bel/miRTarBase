@@ -27,16 +27,27 @@ def download_data(force_download=False):
     :param bool force_download: If true, don't download the file again if it already exists
     """
     if not os.path.exists(DATA_FILE_PATH) or force_download:
+        log.info('downloading %s to %s', DATA_URL, DATA_FILE_PATH)
         urlretrieve(DATA_URL, DATA_FILE_PATH)
+    else:
+        log.info('using cached data at %s', DATA_FILE_PATH)
+
+    return DATA_FILE_PATH
 
 
-def get_data(source=None):
+def get_data(url=None, cache=True, force_download=False):
     """Gets miRTarBase Interactions table and exclude rows with NULL values
 
-    :param str source: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
+    :param Optional[str] url: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
+    :param bool cache: If true, the data is downloaded to the file system, else it is loaded from the internet
+    :param bool force_download: If true, overwrites a previously cached file
+
     :rtype: pandas.DataFrame
     """
-    df = pd.read_excel(source or DATA_URL)
+    if url is None and cache:
+        url = download_data(force_download=force_download)
+
+    df = pd.read_excel(url or DATA_URL)
 
     # find null rows
     null_rows = pd.isnull(df).any(1).nonzero()[0]
