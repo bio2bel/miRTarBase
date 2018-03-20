@@ -1,7 +1,7 @@
 pandas
 sqlalchemy
 xlrd
-pyhgnc
+bio2bel_hgnc
 pybel>=0.10.1
 bio2bel
 click

@@ -1,77 +1,40 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import os
 import time
-from urllib.request import urlretrieve
 
-import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
-import pyhgnc
+import bio2bel_hgnc
 from bio2bel.utils import get_connection
-from bio2bel_mirtarbase.constants import DATA_DIR, DATA_URL, MODULE_NAME
-from bio2bel_mirtarbase.models import Base, Evidence, Interaction, Mirna, Species, Target
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
+from .constants import MODULE_NAME
+from .models import Base, Evidence, Interaction, Mirna, Species, Target
+from .parser import get_data
 
 log = logging.getLogger(__name__)
 
-DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')
 
+def build_entrez_map(hgnc_connection=None):
+    """Builds a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`
 
-def download_data(force_download=False):
-    """Downloads the miRTarBase Excel sheet to a local path
-
-    :param bool force_download: If true, don't download the file again if it already exists
-    """
-    if not os.path.exists(DATA_FILE_PATH) or force_download:
-        log.info('downloading %s to %s', DATA_URL, DATA_FILE_PATH)
-        urlretrieve(DATA_URL, DATA_FILE_PATH)
-    else:
-        log.info('using cached data at %s', DATA_FILE_PATH)
-
-    return DATA_FILE_PATH
-
-
-def get_data(url=None, cache=True, force_download=False):
-    """Gets miRTarBase Interactions table and exclude rows with NULL values
-
-    :param Optional[str] url: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
-    :param bool cache: If true, the data is downloaded to the file system, else it is loaded from the internet
-    :param bool force_download: If true, overwrites a previously cached file
-
-    :rtype: pandas.DataFrame
-    """
-    if url is None and cache:
-        url = download_data(force_download=force_download)
-
-    df = pd.read_excel(url or DATA_URL)
-
-    # find null rows
-    null_rows = pd.isnull(df).any(1).nonzero()[0]
-    return df.drop(null_rows)
-
-
-def build_entrez_map(pyhgnc_connection=None):
-    """Builds a mapping from entrez gene identifiers to their database models from :py:mod:`PyHGNC`
-
-    :param Optional[str] pyhgnc_connection:
-    :rtype: dict[str,pyhgnc.manager.models.HGNC]
+    :param Optional[str] hgnc_connection:
+    :rtype: dict[str,bio2bel_hgnc.models.HGNC]
     """
     log.info('getting entrez mapping')
 
-    if isinstance(pyhgnc_connection, pyhgnc.QueryManager):
-        pyhgnc_manager = pyhgnc_connection
+    if isinstance(hgnc_connection, bio2bel_hgnc.Manager):
+        hgnc_manager = hgnc_connection
     else:
-        pyhgnc_manager = pyhgnc.QueryManager(connection=pyhgnc_connection)
-        log.info('using PyHGNC connection: %s', pyhgnc_manager.connection)
+        hgnc_manager = bio2bel_hgnc.Manager(connection=hgnc_connection)
+        log.info('using HGNC connection: %s', hgnc_manager.connection)
 
     t = time.time()
     emap = {
         model.entrez: model
-        for model in pyhgnc_manager.hgnc()
+        for model in hgnc_manager.hgnc()
         if model.entrez
     }
     log.info('got entrez mapping in %.2f seconds', time.time() - t)
@@ -122,15 +85,18 @@ class Manager(object):
 
         raise TypeError
 
-    def populate(self, source=None, update_pyhgnc=False, pyhgnc_connection=None):
+    def populate(self, source=None, update_hgnc=False, hgnc_connection=None):
         """Populate database with the data from miRTarBase
 
         :param str source: path or link to data source needed for :func:`get_data`
-        :param bool update_pyhgnc: Should HGNC be updated?
-        :param Optional[str] pyhgnc_connection: Optional connection string for pyhgnc
+        :param bool update_hgnc: Should HGNC be updated?
+        :param Optional[str] hgnc_connection: Optional connection string for :class:`bio2bel_hgnc.Manager`
         """
-        if update_pyhgnc:
-            pyhgnc.update(connection=pyhgnc_connection)
+
+        hgnc_manager = bio2bel_hgnc.Manager(connection=hgnc_connection)
+
+        if update_hgnc:
+            hgnc_manager.populate()
 
         t = time.time()
         log.info('getting data')
@@ -142,7 +108,7 @@ class Manager(object):
         species_set = {}
         interaction_set = {}
 
-        emap = build_entrez_map(pyhgnc_connection=pyhgnc_connection)
+        emap = build_entrez_map(hgnc_connection=hgnc_manager)
 
         log.info('building models')
         t = time.time()

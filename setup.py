@@ -24,7 +24,7 @@ INSTALL_REQUIRES = [
     'sqlalchemy',
     'pybel>=0.10.1',
     'bio2bel',
-    'pyhgnc',
+    'bio2bel_hgnc',
     'xlrd',
     'click',
     'tqdm',

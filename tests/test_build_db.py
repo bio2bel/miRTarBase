@@ -31,11 +31,11 @@ class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
         """Create temporary file and populate database"""
         super(TemporaryFilledCacheMixin, cls).setUpClass()
         # fill temporary database with test data
-        cls.pyhgnc_manager._create_tables()
-        json_data = cls.pyhgnc_manager.load_hgnc_json(hgnc_file_path=test_hgnc_path)
-        cls.pyhgnc_manager.insert_hgnc(hgnc_dict=json_data, silent=True)
+        cls.hgnc_manager._create_tables()
+        json_data = cls.hgnc_manager.load_hgnc_json(hgnc_file_path=test_hgnc_path)
+        cls.hgnc_manager.insert_hgnc(hgnc_dict=json_data, silent=True)
 
-        cls.manager.populate(test_xls_path, pyhgnc_connection=cls.connection)
+        cls.manager.populate(test_xls_path, hgnc_connection=cls.connection)
 
 
 class TestBuildDatabase(TemporaryFilledCacheMixin):
@@ -55,22 +55,22 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual(3, self.manager.session.query(Species).count())
 
     def test_count_hgnc(self):
-        self.assertEqual(2, len(self.pyhgnc_manager.hgnc()))
+        self.assertEqual(2, len(self.hgnc_manager.hgnc()))
 
     def get_cxcr4_by_entrez(self):
-        model = self.pyhgnc_manager.hgnc(entrez='7852')
+        model = self.hgnc_manager.hgnc(entrez='7852')
         self.assertIsNotNone(model)
         self.assertEqual('CXCR4', model.hgnc_symbol)
         self.assertEqual('7852', model.entrez)
 
     def get_hif1a_by_entrez(self):
-        model = self.pyhgnc_manager.hgnc(entrez='3091')
+        model = self.hgnc_manager.hgnc(entrez='3091')
         self.assertIsNotNone(model)
         self.assertEqual('HIF1A', model.hgnc_symbol)
         self.assertEqual('3091', model.entrez)
 
     def test_build_map(self):
-        emap = build_entrez_map(pyhgnc_connection=self.pyhgnc_manager)
+        emap = build_entrez_map(hgnc_connection=self.hgnc_manager)
         self.assertEqual(2, len(emap))
         self.assertIn('7852', emap)
         self.assertIn('3091', emap)

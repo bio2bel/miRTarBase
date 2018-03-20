@@ -12,3 +12,4 @@ CONFIG_FILE_PATH = os.path.join(DATA_DIR, 'config.ini')
 
 #: Data source
 DATA_URL = 'http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx'
+DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')
