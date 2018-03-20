@@ -3,12 +3,10 @@
 import logging
 import time
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
 import bio2bel_hgnc
-from bio2bel.utils import get_connection
+from bio2bel.abstractmanager import AbstractManager
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
@@ -25,11 +23,7 @@ def build_entrez_map(hgnc_connection=None):
     """
     log.info('getting entrez mapping')
 
-    if isinstance(hgnc_connection, bio2bel_hgnc.Manager):
-        hgnc_manager = hgnc_connection
-    else:
-        hgnc_manager = bio2bel_hgnc.Manager(connection=hgnc_connection)
-        log.info('using HGNC connection: %s', hgnc_manager.connection)
+    hgnc_manager = bio2bel_hgnc.Manager.ensure(connection=hgnc_connection)
 
     t = time.time()
     emap = {
@@ -48,27 +42,13 @@ def get_name(data):
         return data[IDENTIFIER]
 
 
-class Manager(object):
+class Manager(AbstractManager):
     """Manages the mirTarBase database"""
+    module_name = MODULE_NAME
 
-    def __init__(self, connection=None):
-        """
-        :param Optional[str] connection: The connection string
-        """
-        self.connection = get_connection(MODULE_NAME, connection=connection)
-        self.engine = create_engine(self.connection)
-        self.session_maker = sessionmaker(bind=self.engine, autoflush=False, expire_on_commit=False)
-        self.session = self.session_maker()
-        self.create_all()
-
-    def create_all(self, check_first=True):
-        """Creates all tables"""
-        Base.metadata.create_all(self.engine, checkfirst=check_first)
-
-    def drop_all(self, check_first=True):
-        """Drops all tables"""
-        log.info('dropping tables')
-        Base.metadata.drop_all(self.engine, checkfirst=check_first)
+    @property
+    def base(self):
+        return Base
 
     @staticmethod
     def ensure(connection=None):
@@ -92,8 +72,7 @@ class Manager(object):
         :param bool update_hgnc: Should HGNC be updated?
         :param Optional[str] hgnc_connection: Optional connection string for :class:`bio2bel_hgnc.Manager`
         """
-
-        hgnc_manager = bio2bel_hgnc.Manager(connection=hgnc_connection)
+        hgnc_manager = bio2bel_hgnc.Manager.ensure(connection=hgnc_connection)
 
         if update_hgnc:
             hgnc_manager.populate()
