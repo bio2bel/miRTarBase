@@ -3,11 +3,11 @@
 import logging
 import time
 
+from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from tqdm import tqdm
 
 import bio2bel_hgnc
 from bio2bel.abstractmanager import AbstractManager
-from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
@@ -43,30 +43,24 @@ def get_name(data):
 
 
 class Manager(AbstractManager):
-    """Manages the mirTarBase database"""
+    """Manages the mirTarBase database."""
+
     module_name = MODULE_NAME
+    flask_admin_models = [Mirna, Target, Species, Interaction, Evidence]
 
     @property
-    def base(self):
+    def _base(self):
         return Base
 
-    @staticmethod
-    def ensure(connection=None):
-        """Checks and allows for a Manager to be passed to the function
+    def is_populated(self):
+        """Check if the database is already populated.
 
-        :type connection: None or str or Manager
-        :rtype: Manager
+        :rtype: bool
         """
-        if connection is None or isinstance(connection, str):
-            return Manager(connection=connection)
-
-        if isinstance(connection, Manager):
-            return connection
-
-        raise TypeError
+        return 0 < self.count_mirnas()
 
     def populate(self, source=None, update_hgnc=False, hgnc_connection=None):
-        """Populate database with the data from miRTarBase
+        """Populate database with the data from miRTarBase.
 
         :param str source: path or link to data source needed for :func:`get_data`
         :param bool update_hgnc: Should HGNC be updated?
