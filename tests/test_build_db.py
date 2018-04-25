@@ -8,7 +8,6 @@ from bio2bel_mirtarbase.models import Evidence, Mirna, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
 from pybel.dsl import *
-from pybel.tokens import node_to_tuple
 from tests.constants import TemporaryCacheClassMixin, test_hgnc_path, test_xls_path
 
 hif1a_symbol = 'HIF1A'
@@ -169,9 +168,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual(3, graph.number_of_edges())
 
         self.assertTrue(graph.has_node_with_data(mi2_data))
-
-        t1_tuple = node_to_tuple(mi2_data)
-        self.assertTrue(graph.has_edge(t1_tuple, hif1a_tuple))
+        self.assertTrue(graph.has_edge(mi2_data.as_tuple(), hif1a_tuple))
 
     def test_enrich_hgnc_symbol(self):
         self.help_enrich_hif1a(hif1a_hgnc_name)
