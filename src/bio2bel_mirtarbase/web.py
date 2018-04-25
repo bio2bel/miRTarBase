@@ -8,46 +8,9 @@ use the web extra like:
     pip install bio2bel_mirtarbase[web]
 """
 
-import flask_admin
-from flask import Flask
-from flask_admin.contrib.sqla import ModelView
-
 from bio2bel_mirtarbase.manager import Manager
-from bio2bel_mirtarbase.models import *
-
-
-def add_admin(app, session, **kwargs):
-    """Adds a Flask Admin interface to an application
-
-    :param flask.Flask app:
-    :param session:
-    :param kwargs:
-    :rtype: flask_admin.Admin
-    """
-    admin = flask_admin.Admin(app, **kwargs)
-
-    admin.add_view(ModelView(Interaction, session))
-    admin.add_view(ModelView(Mirna, session))
-    admin.add_view(ModelView(Target, session))
-    admin.add_view(ModelView(Evidence, session))
-    admin.add_view(ModelView(Species, session))
-
-    return admin
-
-
-def get_app(connection=None, url=None):
-    """Creates a Flask application
-
-    :type connection: Optional[str or bio2bel_mirtarbase.Manager]
-    :type url: Optional[str]
-    :rtype: flask.Flask
-    """
-    app = Flask(__name__)
-    manager = Manager.ensure(connection=connection)
-    add_admin(app, manager.session, url=url)
-    return app
-
 
 if __name__ == '__main__':
-    app_ = get_app()
+    manager = Manager()
+    app_ = manager.get_flask_admin_app()
     app_.run(debug=True, host='0.0.0.0', port=5000)

@@ -6,16 +6,16 @@ from sqlalchemy.orm import relationship
 
 from pybel.constants import DIRECTLY_DECREASES
 from pybel.dsl import mirna, rna
+from .constants import MODULE_NAME
 
 ENTREZ_GENE_ID = 'EGID'
 MIRTARBASE = 'MIRTARBASE'
 
-MIRTARBASE_PREFIX = 'mirtarbase'
-MIRNA_TABLE_NAME = '{}_mirna'.format(MIRTARBASE_PREFIX)
-TARGET_TABLE_NAME = '{}_target'.format(MIRTARBASE_PREFIX)
-SPECIES_TABLE_NAME = '{}_species'.format(MIRTARBASE_PREFIX)
-EVIDENCE_TABLE_NAME = '{}_evidence'.format(MIRTARBASE_PREFIX)
-INTERACTION_TABLE_NAME = '{}_interaction'.format(MIRTARBASE_PREFIX)
+MIRNA_TABLE_NAME = '{}_mirna'.format(MODULE_NAME)
+TARGET_TABLE_NAME = '{}_target'.format(MODULE_NAME)
+SPECIES_TABLE_NAME = '{}_species'.format(MODULE_NAME)
+EVIDENCE_TABLE_NAME = '{}_evidence'.format(MODULE_NAME)
+INTERACTION_TABLE_NAME = '{}_interaction'.format(MODULE_NAME)
 
 # create base class
 Base = declarative_base()

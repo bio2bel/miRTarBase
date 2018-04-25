@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import time
 
-from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
+import time
 from tqdm import tqdm
 
 import bio2bel_hgnc
-from bio2bel.abstractmanager import AbstractManager
+from bio2bel import AbstractManager
+from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
