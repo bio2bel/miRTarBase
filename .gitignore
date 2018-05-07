@@ -106,4 +106,4 @@ ENV/
 
 .idea
 .idea/*
-.pytest_cache/v/cache/lastfailed
+.pytest_cache
