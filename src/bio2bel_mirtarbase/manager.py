@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import logging
-
 import time
+
 from tqdm import tqdm
 
 import bio2bel_hgnc
 from bio2bel import AbstractManager
+from pybel import BELGraph
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
@@ -15,15 +16,13 @@ from .parser import get_data
 log = logging.getLogger(__name__)
 
 
-def build_entrez_map(hgnc_connection=None):
+def _build_entrez_map(hgnc_manager):
     """Builds a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`
 
     :param Optional[str] hgnc_connection:
     :rtype: dict[str,bio2bel_hgnc.models.HGNC]
     """
     log.info('getting entrez mapping')
-
-    hgnc_manager = bio2bel_hgnc.Manager.ensure(connection=hgnc_connection)
 
     t = time.time()
     emap = {
@@ -59,16 +58,15 @@ class Manager(AbstractManager):
         """
         return 0 < self.count_mirnas()
 
-    def populate(self, source=None, update_hgnc=False, hgnc_connection=None):
+    def populate(self, source=None, update_hgnc=False):
         """Populate database with the data from miRTarBase.
 
         :param str source: path or link to data source needed for :func:`get_data`
         :param bool update_hgnc: Should HGNC be updated?
-        :param Optional[str] hgnc_connection: Optional connection string for :class:`bio2bel_hgnc.Manager`
         """
-        hgnc_manager = bio2bel_hgnc.Manager.ensure(connection=hgnc_connection)
+        hgnc_manager = bio2bel_hgnc.Manager(connection=self.connection)
 
-        if update_hgnc:
+        if not hgnc_manager.is_populated() or update_hgnc:
             hgnc_manager.populate()
 
         t = time.time()
@@ -81,7 +79,7 @@ class Manager(AbstractManager):
         species_set = {}
         interaction_set = {}
 
-        emap = build_entrez_map(hgnc_connection=hgnc_manager)
+        emap = _build_entrez_map(hgnc_manager)
 
         log.info('building models')
         t = time.time()
@@ -160,35 +158,38 @@ class Manager(AbstractManager):
 
         :rtype: int
         """
-        return self.session.query(Target).count()
+        return self._count_model(Target)
 
     def count_mirnas(self):
         """Counts the number of miRNAs in the database
 
         :rtype: int
         """
-        return self.session.query(Mirna).count()
+        return self._count_model(Mirna)
 
     def count_interactions(self):
         """Counts the number of interactions in the database
 
         :rtype: int
         """
-        return self.session.query(Interaction).count()
+        return self._count_model(Interaction)
 
     def count_evidences(self):
         """Counts the number of evidences in the database
 
         :rtype: int
         """
-        return self.session.query(Evidence).count()
+        return self._count_model(Evidence)
+
+    def list_evidences(self):
+        return self._list_model(Evidence)
 
     def count_species(self):
         """Counts the number of species in the database
 
         :rtype: int
         """
-        return self.session.query(Species).count()
+        return self._count_model(Species)
 
     def summarize(self):
         """Returns a summary dictionary over the content of the database
@@ -308,7 +309,7 @@ class Manager(AbstractManager):
                 for evidence in interaction.evidences:
                     count += 1
                     graph.add_qualified_edge(
-                        interaction.mirna.serialize_to_bel(),
+                        interaction.mirna.as_bel(),
                         node,
                         relation=DIRECTLY_DECREASES,
                         evidence=evidence.support,
@@ -366,10 +367,29 @@ class Manager(AbstractManager):
             log.debug('no mirnas found')
             return
 
-        for mirna in self.session.query(Mirna).filter(Mirna.name.in_(mirtarbase_names)):
+        for mirna in self.session.query(Mirna).filter(Mirna.filter_name_in(mirtarbase_names)):
             for interaction in mirna.interactions:
                 for evidence in interaction.evidences:
                     count += 1
                     evidence.add_to_graph(graph)
 
         log.debug('added %d MTIs', count)
+
+    def to_bel(self):
+        """Maps miRNA-target interactions to BEL.
+
+        :rtype: pybel.BELGraph
+        """
+        graph = BELGraph(
+            name='miRTarBase',
+            version='1.0.0',
+        )
+
+        # TODO check if entrez has all species uploaded and optionally populate remaining species
+        # TODO look up miRNA by miRBase
+
+        for evidence in tqdm(self.list_evidences(), total=self.count_evidences(),
+                             desc='Mapping miRNA-target interactions to BEL'):
+            evidence.add_to_graph(graph)
+
+        return graph

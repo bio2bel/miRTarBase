@@ -32,7 +32,7 @@ class Mirna(Base):
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
 
-    def serialize_to_bel(self):
+    def as_bel(self):
         """Function to serialize to PyBEL node data dictionary.
 
         :rtype: dict
@@ -41,6 +41,10 @@ class Mirna(Base):
             namespace=MIRTARBASE,
             name=str(self.name)
         )
+
+    @staticmethod
+    def filter_name_in(names):
+        return Mirna.name.in_(names)
 
     def __str__(self):
         return self.mirtarbase_name
@@ -159,7 +163,6 @@ class Interaction(Base):
     def __str__(self):
         return '{} =| {}'.format(self.mirna.name, self.target.name)
 
-
 class Evidence(Base):
     """Build Evidence table used to store MTI's and their evidence"""
     __tablename__ = EVIDENCE_TABLE_NAME
@@ -190,7 +193,7 @@ class Evidence(Base):
             target_node = self.interaction.target.serialize_to_entrez_node()
 
         graph.add_qualified_edge(
-            self.interaction.mirna.serialize_to_bel(),
+            self.interaction.mirna.as_bel(),
             target_node,
             relation=DIRECTLY_DECREASES,
             evidence=str(self.support),

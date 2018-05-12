@@ -3,7 +3,7 @@
 import unittest
 
 from bio2bel_mirtarbase.enrich import enrich_rnas
-from bio2bel_mirtarbase.manager import build_entrez_map
+from bio2bel_mirtarbase.manager import _build_entrez_map
 from bio2bel_mirtarbase.models import Evidence, Mirna, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
@@ -16,8 +16,8 @@ hif1a_hgnc_name = rna(name=hif1a_symbol, namespace='HGNC')
 hif1a_hgnc_identifier = rna(identifier='4910', namespace='HGNC')
 hif1a_entrez_name = rna(name='3091', namespace='EGID')
 hif1a_entrez_identifier = rna(identifier='3091', namespace='ENTREZ')
-mi2_data = mirna(name='hsa-miR-20a-5p', namespace='MIRTARBASE', identifier='MIRT000002')
-mi5_data = mirna(name='mmu-miR-124-3p', namespace='MIRTARBASE', identifier='MIRT000005')
+mi2_data = mirna(name='hsa-miR-20a-5p', namespace='MIRTARBASE')
+mi5_data = mirna(name='mmu-miR-124-3p', namespace='MIRTARBASE')
 
 
 class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
@@ -33,8 +33,7 @@ class TemporaryFilledCacheMixin(TemporaryCacheClassMixin):
         cls.hgnc_manager._create_tables()
         json_data = cls.hgnc_manager.load_hgnc_json(hgnc_file_path=test_hgnc_path)
         cls.hgnc_manager.insert_hgnc(hgnc_dict=json_data, silent=True)
-
-        cls.manager.populate(test_xls_path, hgnc_connection=cls.connection)
+        cls.manager.populate(test_xls_path)
 
 
 class TestBuildDatabase(TemporaryFilledCacheMixin):
@@ -69,7 +68,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual('3091', model.entrez)
 
     def test_build_map(self):
-        emap = build_entrez_map(hgnc_connection=self.hgnc_manager)
+        emap = _build_entrez_map(self.hgnc_manager)
         self.assertEqual(2, len(emap))
         self.assertIn('7852', emap)
         self.assertIn('3091', emap)
@@ -89,7 +88,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual("mmu-miR-124-3p", model.name)
         self.assertTrue(any('MIRT000005' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.serialize_to_bel()
+        bel_data = model.as_bel()
 
         self.assertEqual(mi5_data[FUNCTION], bel_data[FUNCTION])
         self.assertEqual(mi5_data[NAME], bel_data[NAME])
@@ -109,7 +108,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual(2, len(model.interactions))
         self.assertTrue(any('MIRT000002' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.serialize_to_bel()
+        bel_data = model.as_bel()
 
         self.assertEqual(mi2_data[FUNCTION], bel_data[FUNCTION])
         self.assertEqual(mi2_data[NAME], bel_data[NAME])
@@ -159,16 +158,16 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
                         msg='Node missing information: {}'.format(node_data))
 
         graph = BELGraph()
-
-        hif1a_tuple = graph.add_node_from_data(node_data)
+        graph.add_node_from_data(node_data)
         self.assertEqual(1, graph.number_of_nodes())
+        self.assertEqual(0, graph.number_of_edges())
 
         enrich_rnas(graph, manager=self.manager)  # should enrich with the HIF1A - hsa-miR-20a-5p interaction
         self.assertEqual(2, graph.number_of_nodes())
         self.assertEqual(3, graph.number_of_edges())
 
         self.assertTrue(graph.has_node_with_data(mi2_data))
-        self.assertTrue(graph.has_edge(mi2_data.as_tuple(), hif1a_tuple))
+        self.assertTrue(graph.has_edge(mi2_data.as_tuple(), node_data.as_tuple()))
 
     def test_enrich_hgnc_symbol(self):
         self.help_enrich_hif1a(hif1a_hgnc_name)

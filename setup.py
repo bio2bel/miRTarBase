@@ -23,6 +23,7 @@ INSTALL_REQUIRES = [
     'pybel[deployment]>=0.11.1',
     'bio2bel>=0.0.9',
     'bio2bel_hgnc',
+    'bio2bel_entrez',
     'pandas',
     'sqlalchemy',
     'xlrd',
