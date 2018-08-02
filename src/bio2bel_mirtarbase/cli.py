@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 
-import logging
+"""Command line interface for Bio2BEL miRTarbase."""
 
 from .manager import Manager
-
-log = logging.getLogger(__name__)
 
 main = Manager.get_cli()
 

@@ -1,27 +1,29 @@
 # -*- coding: utf-8 -*-
 
-import logging
+"""Manager for Bio2BEL miRTarBase."""
 
-import bio2bel_hgnc
+import logging
 import time
+
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
+import bio2bel_entrez
+from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
+import bio2bel_hgnc
 from pybel import BELGraph
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from tqdm import tqdm
 
-import bio2bel_entrez
-from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from .constants import MODULE_NAME
-from .models import Base, Evidence, Interaction, Mirna, Species, Target, HGNC, MIRBASE
+from .models import Base, Evidence, Interaction, MIRBASE, Mirna, Species, Target
 from .parser import get_data
 
 log = logging.getLogger(__name__)
 
 
 def _build_entrez_map(hgnc_manager):
-    """Builds a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`
+    """Build a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`.
 
     :param Optional[str] hgnc_connection:
     :rtype: dict[str,bio2bel_hgnc.models.HGNC]
@@ -38,7 +40,7 @@ def _build_entrez_map(hgnc_manager):
     return emap
 
 
-def get_name(data):
+def _get_name(data):
     if NAME in data:
         return data[NAME]
     elif IDENTIFIER in data:
@@ -158,28 +160,28 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         log.info('committed after %.2f seconds', time.time() - t)
 
     def count_targets(self):
-        """Counts the number of targets in the database
+        """Count the number of targets in the database.
 
         :rtype: int
         """
         return self._count_model(Target)
 
     def count_mirnas(self):
-        """Counts the number of miRNAs in the database
+        """Count the number of miRNAs in the database.
 
         :rtype: int
         """
         return self._count_model(Mirna)
 
     def count_interactions(self):
-        """Counts the number of interactions in the database
+        """Count the number of interactions in the database.
 
         :rtype: int
         """
         return self._count_model(Interaction)
 
     def count_evidences(self):
-        """Counts the number of evidences in the database
+        """Count the number of evidences in the database.
 
         :rtype: int
         """
@@ -226,7 +228,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         return interaction.mirna
 
     def query_mirna_by_mirtarbase_name(self, name):
-        """Gets an miRNA by its miRTarBase name
+        """Get an miRNA by its miRTarBase name.
 
         :param str name: An miRTarBase name
         :rtype: Optional[Mirna]
@@ -234,7 +236,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         return self.session.query(Mirna).filter(Mirna.name == name).one_or_none()
 
     def query_mirna_by_hgnc_identifier(self, hgnc_id):
-        """Query for a miRNA by its HGNC identifier
+        """Query for a miRNA by its HGNC identifier.
 
         :param str hgnc_id: HGNC gene identifier
         :rtype: Optional[Mirna]
@@ -242,7 +244,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         raise NotImplementedError
 
     def query_mirna_by_hgnc_symbol(self, hgnc_symbol):
-        """Query for a miRNA by its HGNC gene symbol
+        """Query for a miRNA by its HGNC gene symbol.
 
         :param str hgnc_symbol: HGNC gene symbol
         :rtype: Optional[Mirna]
@@ -250,7 +252,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         raise NotImplementedError
 
     def query_target_by_entrez_id(self, entrez_id):
-        """Query for one target
+        """Query for one target.
 
         :param str entrez_id: Entrez gene identifier
         :rtype: Optional[Target]
@@ -258,7 +260,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         return self.session.query(Target).filter(Target.entrez_id == entrez_id).one_or_none()
 
     def query_target_by_hgnc_symbol(self, hgnc_symbol):
-        """Query for one target
+        """Query for one target.
 
         :param str hgnc_symbol: HGNC gene symbol
         :rtype: Optional[Target]
@@ -266,12 +268,26 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()
 
     def query_target_by_hgnc_identifier(self, hgnc_id):
-        """Query for one target
+        """Query for one target.
 
         :param str hgnc_id: HGNC gene identifier
         :rtype: Optional[Target]
         """
         return self.session.query(Target).filter(Target.hgnc_id == hgnc_id).one_or_none()
+
+    def _enrich_rna_handle_hgnc(self, identifier, name):
+        if identifier:
+            return self.query_target_by_hgnc_identifier(identifier)
+        if name:
+            return self.query_target_by_hgnc_symbol(name)
+        raise IndexError
+
+    def _enrich_rna_handle_entrez(self, identifier, name):
+        if identifier:
+            return self.query_target_by_entrez_id(identifier)
+        if name:
+            return self.query_target_by_entrez_id(name)
+        raise IndexError
 
     def enrich_rnas(self, graph):
         """Add all of the miRNA inhibitors of the RNA nodes in the graph.
@@ -289,28 +305,19 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
                 continue
 
             namespace = data[NAMESPACE]
+            identifier = data.get(IDENTIFIER)
+            name = data.get(NAME)
 
             if namespace.lower() == 'hgnc':
-                if IDENTIFIER in data:
-                    target = self.query_target_by_hgnc_identifier(data[IDENTIFIER])
-                elif NAME in data:
-                    target = self.query_target_by_hgnc_symbol(data[NAME])
-                else:
-                    raise IndexError
-
+                target = self._enrich_rna_handle_hgnc(identifier, name)
             elif namespace.lower() in VALID_ENTREZ_NAMESPACES:
-                if IDENTIFIER in data:
-                    target = self.query_target_by_entrez_id(data[IDENTIFIER])
-                elif NAME in data:
-                    target = self.query_target_by_entrez_id(data[NAME])
-                else:
-                    raise IndexError
+                target = self._enrich_rna_handle_entrez(identifier, name)
             else:
                 log.warning("Unable to map namespace: %s", namespace)
                 continue
 
             if target is None:
-                log.warning("Unable to find RNA: %s:%s", namespace, get_name(data))
+                log.warning("Unable to find RNA: %s:%s", namespace, _get_name(data))
                 continue
 
             for interaction in target.interactions:
@@ -341,10 +348,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         mirtarbase_names = set()
 
         for node, data in graph.nodes(data=True):
-            if data[FUNCTION] != MIRNA:
-                continue
-
-            if NAMESPACE not in data:
+            if data[FUNCTION] != MIRNA or NAMESPACE not in data:
                 continue
 
             namespace = data[NAMESPACE]
@@ -352,19 +356,10 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             if namespace.lower() == 'mirtarbase':
                 if NAME in data:
                     mirtarbase_names.add(data[NAME])
-                else:
-                    raise IndexError('no usable identifier for {}'.format(data))
+                raise IndexError('no usable identifier for {}'.format(data))
 
-            elif namespace.lower() == 'mirbase':
-                log.debug('not yet able to map miRBase')
-                continue
-
-            elif namespace.lower() == 'hgnc':
-                log.debug('not yet able to map HGNC')
-                continue
-
-            elif namespace.lower() in VALID_ENTREZ_NAMESPACES:
-                log.debug('not yet able to map Entrez')
+            elif namespace.lower() in {'mirbase', 'hgnc'} | VALID_ENTREZ_NAMESPACES:
+                log.debug('not yet able to map %s', namespace)
                 continue
 
             else:
@@ -375,11 +370,15 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             log.debug('no mirnas found')
             return
 
-        for mirna in self.session.query(Mirna).filter(Mirna.filter_name_in(mirtarbase_names)):
-            for interaction in mirna.interactions:
-                for evidence in interaction.evidences:
-                    count += 1
-                    evidence.add_to_graph(graph)
+        query = self.session \
+            .query(Mirna, Interaction, Evidence) \
+            .join(Interaction) \
+            .join(Evidence) \
+            .filter(Mirna.filter_name_in(mirtarbase_names))
+
+        for mirna, interaction, evidence in query:
+            count += 1
+            evidence.add_to_graph(graph)
 
         log.debug('added %d MTIs', count)
 

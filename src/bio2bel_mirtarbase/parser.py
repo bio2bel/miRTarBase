@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""Parsers for miRTarBase resourves."""
+
 import logging
 import os
 from urllib.request import urlretrieve
@@ -12,7 +14,7 @@ log = logging.getLogger(__name__)
 
 
 def download_data(force_download=False):
-    """Downloads the miRTarBase Excel sheet to a local path
+    """Download the miRTarBase Excel sheet to a local path.
 
     :param bool force_download: If true, don't download the file again if it already exists
     """
@@ -26,7 +28,7 @@ def download_data(force_download=False):
 
 
 def get_data(url=None, cache=True, force_download=False):
-    """Gets miRTarBase Interactions table and exclude rows with NULL values
+    """Get miRTarBase Interactions table and exclude rows with NULL values.
 
     :param Optional[str] url: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
     :param bool cache: If true, the data is downloaded to the file system, else it is loaded from the internet

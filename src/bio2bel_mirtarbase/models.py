@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+"""SQLAlchemy models for Bio2BEL miRTarBase."""
+
 from pybel.dsl import mirna, rna
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
@@ -20,6 +22,7 @@ INTERACTION_TABLE_NAME = '{}_interaction'.format(MODULE_NAME)
 # create base class
 Base = declarative_base()
 
+
 class Species(Base):
     """Represents a species."""
 
@@ -30,8 +33,9 @@ class Species(Base):
     name = Column(String(255), nullable=False, unique=True, index=True, doc='The scientific name for the species')
 
     def to_json(self, include_id=True):
-        """
-        :param bool include_id:
+        """Serialize to JSON.
+
+        :param bool include_id: Include the database identifier?
         :rtype: dict
         """
         rv = {
@@ -43,11 +47,13 @@ class Species(Base):
 
         return rv
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return self.name
 
+
 class Mirna(Base):
-    """Create mirna table that stores information about the miRNA"""
+    """Create mirna table that stores information about the miRNA."""
+
     __tablename__ = MIRNA_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -58,7 +64,7 @@ class Mirna(Base):
     species = relationship(Species)
 
     def as_bel(self):
-        """Function to serialize to PyBEL node data dictionary.
+        """Serialize to a PyBEL node data dictionary.
 
         :rtype: pybel.dsl.mirna
         """
@@ -70,14 +76,20 @@ class Mirna(Base):
 
     @staticmethod
     def filter_name_in(names):
+        """Build a name filter.
+
+        :param iter[str] names: A sequence of names
+        :returns: A column operator
+        """
         return Mirna.name.in_(names)
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return self.name
 
 
 class Target(Base):
-    """Build target table, which stores information about the target gene"""
+    """Represents a target RNA."""
+
     __tablename__ = TARGET_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -91,13 +103,13 @@ class Target(Base):
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship('Species')
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return self.name
 
     def serialize_to_entrez_node(self):
-        """Function to serialize to PyBEL node data dictionary.
+        """Serialize to PyBEL node data dictionary.
 
-        :rtype: dict
+        :rtype: pybel.dsl.rna
         """
         return rna(
             namespace=NCBIGENE,
@@ -106,9 +118,9 @@ class Target(Base):
         )
 
     def serialize_to_hgnc_node(self):
-        """Function to serialize to PyBEL node data dictionary.
+        """Serialize to PyBEL node data dictionary.
 
-        :rtype: dict
+        :rtype: pybel.dsl.rna
         """
         if self.hgnc_id is None:
             raise ValueError('missing HGNC information for Entrez Gene {}'.format(self.entrez_id))
@@ -120,7 +132,7 @@ class Target(Base):
         )
 
     def to_json(self, include_id=True):
-        """Returns this object as JSON
+        """Return this object as JSON.
 
         :rtype: dict
         """
@@ -136,9 +148,6 @@ class Target(Base):
             rv['id'] = self.id
 
         return rv
-
-
-
 
 
 class Interaction(Base):
@@ -164,7 +173,7 @@ class Interaction(Base):
         Index('interaction_idx', 'mirna_id', 'target_id', unique=True),
     )
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return '{} =| {}'.format(self.mirna.name, self.target.name)
 
 
@@ -185,7 +194,7 @@ class Evidence(Base):
                             doc='The interaction for which this evidence was captured')
     interaction = relationship(Interaction, backref="evidences")
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return '{}: {}'.format(self.reference, self.support)
 
     def add_to_graph(self, graph):
