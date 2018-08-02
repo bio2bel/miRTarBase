@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 
+from pybel.dsl import mirna, rna
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-from pybel.constants import DIRECTLY_DECREASES
-from pybel.dsl import mirna, rna
 from .constants import MODULE_NAME
 
-ENTREZ_GENE_ID = 'EGID'
-MIRTARBASE = 'MIRTARBASE'
+NCBIGENE = 'ncbigene'
+MIRBASE = 'mirbase'
+HGNC = 'hgnc'
 
 MIRNA_TABLE_NAME = '{}_mirna'.format(MODULE_NAME)
 TARGET_TABLE_NAME = '{}_target'.format(MODULE_NAME)
@@ -20,6 +20,31 @@ INTERACTION_TABLE_NAME = '{}_interaction'.format(MODULE_NAME)
 # create base class
 Base = declarative_base()
 
+class Species(Base):
+    """Represents a species."""
+
+    __tablename__ = SPECIES_TABLE_NAME
+
+    id = Column(Integer, primary_key=True)
+
+    name = Column(String(255), nullable=False, unique=True, index=True, doc='The scientific name for the species')
+
+    def to_json(self, include_id=True):
+        """
+        :param bool include_id:
+        :rtype: dict
+        """
+        rv = {
+            'name': str(self.name)
+        }
+
+        if include_id:
+            rv['id'] = self.id
+
+        return rv
+
+    def __str__(self):
+        return self.name
 
 class Mirna(Base):
     """Create mirna table that stores information about the miRNA"""
@@ -30,16 +55,17 @@ class Mirna(Base):
     name = Column(String(31), nullable=False, unique=True, index=True, doc="miRTarBase name")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
-    species = relationship('Species')
+    species = relationship(Species)
 
     def as_bel(self):
         """Function to serialize to PyBEL node data dictionary.
 
-        :rtype: dict
+        :rtype: pybel.dsl.mirna
         """
         return mirna(
-            namespace=MIRTARBASE,
-            name=str(self.name)
+            namespace=MIRBASE,
+            name=str(self.name),
+            # TODO need mappings / real identifiers!
         )
 
     @staticmethod
@@ -47,7 +73,7 @@ class Mirna(Base):
         return Mirna.name.in_(names)
 
     def __str__(self):
-        return self.mirtarbase_name
+        return self.name
 
 
 class Target(Base):
@@ -74,7 +100,7 @@ class Target(Base):
         :rtype: dict
         """
         return rna(
-            namespace=ENTREZ_GENE_ID,
+            namespace=NCBIGENE,
             identifier=str(self.entrez_id),
             name=str(self.name)
         )
@@ -88,7 +114,7 @@ class Target(Base):
             raise ValueError('missing HGNC information for Entrez Gene {}'.format(self.entrez_id))
 
         return rna(
-            namespace='HGNC',
+            namespace=HGNC,
             identifier=str(self.hgnc_id),
             name=str(self.hgnc_symbol)
         )
@@ -112,34 +138,12 @@ class Target(Base):
         return rv
 
 
-class Species(Base):
-    """Represents a species"""
-    __tablename__ = SPECIES_TABLE_NAME
 
-    id = Column(Integer, primary_key=True)
-
-    name = Column(String(255), nullable=False, unique=True, index=True, doc='The scientific name for the species')
-
-    def to_json(self, include_id=True):
-        """
-        :param bool include_id:
-        :rtype: dict
-        """
-        rv = {
-            'name': str(self.name)
-        }
-
-        if include_id:
-            rv['id'] = self.id
-
-        return rv
-
-    def __str__(self):
-        return self.name
 
 
 class Interaction(Base):
-    """Build Interaction table used to store miRNA and target relations"""
+    """Build Interaction table used to store miRNA and target relations."""
+
     __tablename__ = INTERACTION_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -149,11 +153,11 @@ class Interaction(Base):
 
     mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)), nullable=False, index=True,
                       doc='The miRTarBase identifier of the interacting miRNA')
-    mirna = relationship("Mirna", backref="interactions")
+    mirna = relationship(Mirna, backref="interactions")
 
     target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)), nullable=False, index=True,
                        doc='The Entrez gene identifier of the interacting RNA')
-    target = relationship("Target", backref="interactions")
+    target = relationship(Target, backref="interactions")
 
     __table_args__ = (
         UniqueConstraint('mirna_id', 'target_id'),
@@ -163,8 +167,10 @@ class Interaction(Base):
     def __str__(self):
         return '{} =| {}'.format(self.mirna.name, self.target.name)
 
+
 class Evidence(Base):
-    """Build Evidence table used to store MTI's and their evidence"""
+    """Build Evidence table used to store MTI's and their evidence."""
+
     __tablename__ = EVIDENCE_TABLE_NAME
 
     id = Column(Integer, primary_key=True)
@@ -177,13 +183,13 @@ class Evidence(Base):
 
     interaction_id = Column(Integer, ForeignKey("{}.id".format(INTERACTION_TABLE_NAME)),
                             doc='The interaction for which this evidence was captured')
-    interaction = relationship("Interaction", backref="evidences")
+    interaction = relationship(Interaction, backref="evidences")
 
     def __str__(self):
         return '{}: {}'.format(self.reference, self.support)
 
     def add_to_graph(self, graph):
-        """Adds this edge to the BEL graph
+        """Add this edge to the BEL graph.
 
         :param pybel.BELGraph graph:
         """
@@ -192,10 +198,9 @@ class Evidence(Base):
         except ValueError:
             target_node = self.interaction.target.serialize_to_entrez_node()
 
-        graph.add_qualified_edge(
+        return graph.add_directly_decreases(
             self.interaction.mirna.as_bel(),
             target_node,
-            relation=DIRECTLY_DECREASES,
             evidence=str(self.support),
             citation=str(self.reference),
             annotations={

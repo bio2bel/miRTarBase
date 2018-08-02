@@ -1,16 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import logging
-import time
-
-from tqdm import tqdm
 
 import bio2bel_hgnc
+import time
 from bio2bel import AbstractManager
+from bio2bel.manager.bel_manager import BELManagerMixin
+from bio2bel.manager.flask_manager import FlaskMixin
 from pybel import BELGraph
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
+from tqdm import tqdm
+
+import bio2bel_entrez
+from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from .constants import MODULE_NAME
-from .models import Base, Evidence, Interaction, Mirna, Species, Target
+from .models import Base, Evidence, Interaction, Mirna, Species, Target, HGNC, MIRBASE
 from .parser import get_data
 
 log = logging.getLogger(__name__)
@@ -41,7 +45,7 @@ def get_name(data):
         return data[IDENTIFIER]
 
 
-class Manager(AbstractManager):
+class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     """Manages the mirTarBase database."""
 
     module_name = MODULE_NAME
@@ -182,17 +186,21 @@ class Manager(AbstractManager):
         return self._count_model(Evidence)
 
     def list_evidences(self):
+        """List the evidences in the database.
+
+        :rtype: list[Evidence]
+        """
         return self._list_model(Evidence)
 
     def count_species(self):
-        """Counts the number of species in the database
+        """Count the number of species in the database.
 
         :rtype: int
         """
         return self._count_model(Species)
 
     def summarize(self):
-        """Returns a summary dictionary over the content of the database
+        """Return a summary dictionary over the content of the database.
 
         :rtype: dict[str,int]
         """
@@ -205,7 +213,7 @@ class Manager(AbstractManager):
         )
 
     def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
-        """Gets an miRNA by the miRTarBase interaction identifier.
+        """Get an miRNA by the miRTarBase interaction identifier.
 
         :param str mirtarbase_id: An miRTarBase interaction identifier
         :rtype: Optional[Mirna]
@@ -266,7 +274,7 @@ class Manager(AbstractManager):
         return self.session.query(Target).filter(Target.hgnc_id == hgnc_id).one_or_none()
 
     def enrich_rnas(self, graph):
-        """Adds all of the miRNA inhibitors of the RNA nodes in the graph
+        """Add all of the miRNA inhibitors of the RNA nodes in the graph.
 
         :param pybel.BELGraph graph: A BEL graph
         """
@@ -282,7 +290,7 @@ class Manager(AbstractManager):
 
             namespace = data[NAMESPACE]
 
-            if namespace == 'HGNC':
+            if namespace.lower() == 'hgnc':
                 if IDENTIFIER in data:
                     target = self.query_target_by_hgnc_identifier(data[IDENTIFIER])
                 elif NAME in data:
@@ -290,7 +298,7 @@ class Manager(AbstractManager):
                 else:
                     raise IndexError
 
-            elif namespace in {'EGID', 'ENTREZ'}:
+            elif namespace.lower() in VALID_ENTREZ_NAMESPACES:
                 if IDENTIFIER in data:
                     target = self.query_target_by_entrez_id(data[IDENTIFIER])
                 elif NAME in data:
@@ -323,7 +331,7 @@ class Manager(AbstractManager):
         log.debug('added %d MTIs', count)
 
     def enrich_mirnas(self, graph):
-        """Adds all target RNAs to the miRNA nodes in the graph
+        """Add all target RNAs to the miRNA nodes in the graph.
 
         :param pybel.BELGraph graph: A BEL graph
         """
@@ -341,21 +349,21 @@ class Manager(AbstractManager):
 
             namespace = data[NAMESPACE]
 
-            if namespace == 'MIRTARBASE':
+            if namespace.lower() == 'mirtarbase':
                 if NAME in data:
                     mirtarbase_names.add(data[NAME])
                 else:
                     raise IndexError('no usable identifier for {}'.format(data))
 
-            elif namespace == 'MIRBASE':
+            elif namespace.lower() == 'mirbase':
                 log.debug('not yet able to map miRBase')
                 continue
 
-            elif namespace == 'HGNC':
+            elif namespace.lower() == 'hgnc':
                 log.debug('not yet able to map HGNC')
                 continue
 
-            elif namespace in {'ENTREZ', 'EGID'}:
+            elif namespace.lower() in VALID_ENTREZ_NAMESPACES:
                 log.debug('not yet able to map Entrez')
                 continue
 
@@ -376,7 +384,7 @@ class Manager(AbstractManager):
         log.debug('added %d MTIs', count)
 
     def to_bel(self):
-        """Maps miRNA-target interactions to BEL.
+        """Serialize miRNA-target interactions to BEL.
 
         :rtype: pybel.BELGraph
         """
@@ -384,6 +392,16 @@ class Manager(AbstractManager):
             name='miRTarBase',
             version='1.0.0',
         )
+
+        hgnc_manager = bio2bel_hgnc.Manager(engine=self.engine, session=self.session)
+        hgnc_namespace = hgnc_manager.upload_bel_namespace()
+        graph.namespace_url[hgnc_namespace.keyword] = hgnc_namespace.url
+
+        entrez_manager = bio2bel_entrez.Manager(engine=self.engine, session=self.session)
+        entrez_namespace = entrez_manager.upload_bel_namespace()
+        graph.namespace_url[entrez_namespace.keyword] = entrez_namespace.url
+
+        graph.namespace_pattern[MIRBASE] = '^.*$'
 
         # TODO check if entrez has all species uploaded and optionally populate remaining species
         # TODO look up miRNA by miRBase
