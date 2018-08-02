@@ -1,5 +1,5 @@
-miRTarBase to BEL |build| |coverage| |documentation| |zenodo|
-=============================================================
+Bio2BEL miRTarBase |build| |coverage| |documentation| |zenodo|
+==============================================================
 Serializes text-mined miRNA-target interactions to BEL
 
 Installation |pypi_version| |python_versions| |pypi_license|
