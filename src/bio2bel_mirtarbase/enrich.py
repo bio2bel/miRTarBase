@@ -12,9 +12,10 @@ def enrich_mirnas(graph, manager=None):
 
     :param pybel.BELGraph graph: A BEL graph
     :param manager: A miRTarBase database manager
-    :type manager: None or str or Manager
+    :type manager: Optional[Manager]
     """
-    manager = Manager.ensure(manager)
+    if manager is None:
+        manager = Manager()
     manager.enrich_mirnas(graph)
 
 
@@ -23,7 +24,8 @@ def enrich_rnas(graph, manager=None):
 
     :param pybel.BELGraph graph: A BEL graph
     :param manager: A miRTarBase database manager
-    :type manager: None or str or Manager
+    :type manager: Optional[Manager]
     """
-    manager = Manager.ensure(manager)
+    if manager is None:
+        manager = Manager()
     manager.enrich_rnas(graph)
