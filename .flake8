@@ -1,5 +1,10 @@
+#########################
+# Flake8 Configuration  #
+# (.flake8)             #
+# (formerly in tox.ini) #
+#########################
 [flake8]
-ignore = E501
+# flake8
 exclude =
     .tox,
     .git,
@@ -7,12 +12,23 @@ exclude =
     docs/source/conf.py,
     build,
     dist,
-    tests/fixtures/*,
     *.pyc,
     *.egg-info,
     .cache,
     .eggs
-max-complexity = 10
-import-order-style = google
-application-import-names = flake8
 format = ${cyan}%(path)s${reset}:${yellow_bold}%(row)d${reset}:${green_bold}%(col)d${reset}: ${red_bold}%(code)s${reset} %(text)s
+ignore = D105,E501
+
+# flake8-import-order
+application-import-names =
+	bio2bel_mirtarbase
+	bio2bel_mirbase
+	bio2bel_entrez
+	bio2bel_hgnc
+	bio2bel
+	pybel
+	tests
+import-order-style = pycharm
+
+# mccabe
+max-complexity = 10

@@ -87,7 +87,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual("mmu-miR-124-3p", model.name)
         self.assertTrue(any('MIRT000005' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.as_bel()
+        bel_data = model.as_gene_bel()
 
         self.assertEqual(mi5_data[FUNCTION], bel_data[FUNCTION])
         self.assertEqual(mi5_data[NAME], bel_data[NAME])
@@ -108,7 +108,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual(2, len(model.interactions))
         self.assertTrue(any('MIRT000002' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.as_bel()
+        bel_data = model.as_gene_bel()
 
         self.assertEqual(mi2_data[FUNCTION], bel_data[FUNCTION])
         self.assertEqual(mi2_data[NAME], bel_data[NAME])

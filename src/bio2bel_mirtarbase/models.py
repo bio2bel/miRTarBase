@@ -2,11 +2,14 @@
 
 """SQLAlchemy models for Bio2BEL miRTarBase."""
 
-from pybel.dsl import mirna, rna
+from typing import Iterable, Mapping
+
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+from pybel import BELGraph
+from pybel.dsl import mirna, rna
 from .constants import MODULE_NAME
 
 NCBIGENE = 'ncbigene'
@@ -30,13 +33,13 @@ class Species(Base):
 
     id = Column(Integer, primary_key=True)
 
+    taxonomy_id = Column(String(255), nullable=True, unique=True, index=True, doc='The NCBI taxonomy identifier')
     name = Column(String(255), nullable=False, unique=True, index=True, doc='The scientific name for the species')
 
-    def to_json(self, include_id=True):
+    def to_json(self, include_id: bool = True) -> Mapping:
         """Serialize to JSON.
 
-        :param bool include_id: Include the database identifier?
-        :rtype: dict
+        :param include_id: Include the database identifier?
         """
         rv = {
             'name': str(self.name)
@@ -59,15 +62,14 @@ class Mirna(Base):
     id = Column(Integer, primary_key=True)
 
     name = Column(String(31), nullable=False, unique=True, index=True, doc="miRTarBase name")
+    mirbase_id = Column(String(255), nullable=True, unique=True, index=True, doc="miRBase identifier")
+    entrez_id = Column(String(255), nullable=True, unique=True, index=True, doc="Entrez Gene identifier")
 
     species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
     species = relationship(Species)
 
-    def as_bel(self):
-        """Serialize to a PyBEL node data dictionary.
-
-        :rtype: pybel.dsl.mirna
-        """
+    def as_bel(self) -> mirna:
+        """Serialize to a PyBEL node data dictionary."""
         return mirna(
             namespace=MIRBASE,
             name=str(self.name),
@@ -75,12 +77,8 @@ class Mirna(Base):
         )
 
     @staticmethod
-    def filter_name_in(names):
-        """Build a name filter.
-
-        :param iter[str] names: A sequence of names
-        :returns: A column operator
-        """
+    def filter_name_in(names: Iterable[str]):
+        """Build a name filter."""
         return Mirna.name.in_(names)
 
     def __str__(self):  # noqa: D105
@@ -106,22 +104,16 @@ class Target(Base):
     def __str__(self):  # noqa: D105
         return self.name
 
-    def serialize_to_entrez_node(self):
-        """Serialize to PyBEL node data dictionary.
-
-        :rtype: pybel.dsl.rna
-        """
+    def serialize_to_entrez_node(self) -> rna:
+        """Serialize to PyBEL node data dictionary."""
         return rna(
             namespace=NCBIGENE,
             identifier=str(self.entrez_id),
             name=str(self.name)
         )
 
-    def serialize_to_hgnc_node(self):
-        """Serialize to PyBEL node data dictionary.
-
-        :rtype: pybel.dsl.rna
-        """
+    def serialize_to_hgnc_node(self) -> rna:
+        """Serialize to PyBEL node data dictionary."""
         if self.hgnc_id is None:
             raise ValueError('missing HGNC information for Entrez Gene {}'.format(self.entrez_id))
 
@@ -131,11 +123,8 @@ class Target(Base):
             name=str(self.hgnc_symbol)
         )
 
-    def to_json(self, include_id=True):
-        """Return this object as JSON.
-
-        :rtype: dict
-        """
+    def to_json(self, include_id=True) -> Mapping:
+        """Return this object as JSON."""
         rv = {
             'species': self.species.to_json(),
             'identifiers': [
@@ -197,11 +186,8 @@ class Evidence(Base):
     def __str__(self):  # noqa: D105
         return '{}: {}'.format(self.reference, self.support)
 
-    def add_to_graph(self, graph):
-        """Add this edge to the BEL graph.
-
-        :param pybel.BELGraph graph:
-        """
+    def add_to_graph(self, graph: BELGraph) -> str:
+        """Add this edge to the BEL graph and return the ket for that edge."""
         try:
             target_node = self.interaction.target.serialize_to_hgnc_node()
         except ValueError:

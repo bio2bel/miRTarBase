@@ -4,30 +4,29 @@
 
 import logging
 import time
+from typing import List, Mapping, Optional
 
+from tqdm import tqdm
+
+import bio2bel_entrez
+import bio2bel_hgnc
+import bio2bel_mirbase
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
-import bio2bel_entrez
 from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
-import bio2bel_hgnc
+from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
 from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
-from tqdm import tqdm
-
 from .constants import MODULE_NAME
-from .models import Base, Evidence, Interaction, MIRBASE, Mirna, Species, Target
+from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
 
 log = logging.getLogger(__name__)
 
 
-def _build_entrez_map(hgnc_manager):
-    """Build a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`.
-
-    :param Optional[str] hgnc_connection:
-    :rtype: dict[str,bio2bel_hgnc.models.HGNC]
-    """
+def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanGene]:
+    """Build a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`."""
     log.info('getting entrez mapping')
 
     t = time.time()
@@ -48,7 +47,7 @@ def _get_name(data):
 
 
 class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
-    """Manages the mirTarBase database."""
+    """Manage the mirTarBase database."""
 
     module_name = MODULE_NAME
     flask_admin_models = [Mirna, Target, Species, Interaction, Evidence]
@@ -57,18 +56,15 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     def _base(self):
         return Base
 
-    def is_populated(self):
-        """Check if the database is already populated.
-
-        :rtype: bool
-        """
+    def is_populated(self) -> bool:
+        """Check if the database is already populated."""
         return 0 < self.count_mirnas()
 
-    def populate(self, source=None, update_hgnc=False):
+    def populate(self, source: Optional[str] = None, update_hgnc: bool = False) -> None:
         """Populate database with the data from miRTarBase.
 
-        :param str source: path or link to data source needed for :func:`get_data`
-        :param bool update_hgnc: Should HGNC be updated?
+        :param source: path or link to data source needed for :func:`get_data`
+        :param update_hgnc: Should HGNC be updated?
         """
         hgnc_manager = bio2bel_hgnc.Manager(connection=self.connection)
 
@@ -159,53 +155,32 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         self.session.commit()
         log.info('committed after %.2f seconds', time.time() - t)
 
-    def count_targets(self):
-        """Count the number of targets in the database.
-
-        :rtype: int
-        """
+    def count_targets(self) -> int:
+        """Count the number of targets in the database."""
         return self._count_model(Target)
 
-    def count_mirnas(self):
-        """Count the number of miRNAs in the database.
-
-        :rtype: int
-        """
+    def count_mirnas(self) -> int:
+        """Count the number of miRNAs in the database."""
         return self._count_model(Mirna)
 
-    def count_interactions(self):
-        """Count the number of interactions in the database.
-
-        :rtype: int
-        """
+    def count_interactions(self) -> int:
+        """Count the number of interactions in the database."""
         return self._count_model(Interaction)
 
-    def count_evidences(self):
-        """Count the number of evidences in the database.
-
-        :rtype: int
-        """
+    def count_evidences(self) -> int:
+        """Count the number of evidences in the database."""
         return self._count_model(Evidence)
 
-    def list_evidences(self):
-        """List the evidences in the database.
-
-        :rtype: list[Evidence]
-        """
+    def list_evidences(self) -> List[Evidence]:
+        """List the evidences in the database."""
         return self._list_model(Evidence)
 
-    def count_species(self):
-        """Count the number of species in the database.
-
-        :rtype: int
-        """
+    def count_species(self) -> int:
+        """Count the number of species in the database."""
         return self._count_model(Species)
 
-    def summarize(self):
-        """Return a summary dictionary over the content of the database.
-
-        :rtype: dict[str,int]
-        """
+    def summarize(self) -> Mapping[str, int]:
+        """Return a summary dictionary over the content of the database."""
         return dict(
             targets=self.count_targets(),
             mirnas=self.count_mirnas(),
@@ -214,11 +189,10 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             evidences=self.count_evidences(),
         )
 
-    def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id):
+    def query_mirna_by_mirtarbase_identifier(self, mirtarbase_id: str) -> Optional[Mirna]:
         """Get an miRNA by the miRTarBase interaction identifier.
 
-        :param str mirtarbase_id: An miRTarBase interaction identifier
-        :rtype: Optional[Mirna]
+        :param mirtarbase_id: An miRTarBase interaction identifier
         """
         interaction = self.session.query(Interaction).filter(Interaction.mirtarbase_id == mirtarbase_id).one_or_none()
 
@@ -227,15 +201,14 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         return interaction.mirna
 
-    def query_mirna_by_mirtarbase_name(self, name):
+    def query_mirna_by_mirtarbase_name(self, name: str) -> Optional[Mirna]:
         """Get an miRNA by its miRTarBase name.
 
-        :param str name: An miRTarBase name
-        :rtype: Optional[Mirna]
+        :param name: An miRTarBase name
         """
         return self.session.query(Mirna).filter(Mirna.name == name).one_or_none()
 
-    def query_mirna_by_hgnc_identifier(self, hgnc_id):
+    def query_mirna_by_hgnc_identifier(self, hgnc_id: str) -> Optional[Mirna]:
         """Query for a miRNA by its HGNC identifier.
 
         :param str hgnc_id: HGNC gene identifier
@@ -243,35 +216,31 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         """
         raise NotImplementedError
 
-    def query_mirna_by_hgnc_symbol(self, hgnc_symbol):
+    def query_mirna_by_hgnc_symbol(self, hgnc_symbol: str) -> Optional[Mirna]:
         """Query for a miRNA by its HGNC gene symbol.
 
-        :param str hgnc_symbol: HGNC gene symbol
-        :rtype: Optional[Mirna]
+        :param hgnc_symbol: HGNC gene symbol
         """
         raise NotImplementedError
 
-    def query_target_by_entrez_id(self, entrez_id):
+    def query_target_by_entrez_id(self, entrez_id: str) -> Optional[Target]:
         """Query for one target.
 
-        :param str entrez_id: Entrez gene identifier
-        :rtype: Optional[Target]
+        :param entrez_id: Entrez gene identifier
         """
         return self.session.query(Target).filter(Target.entrez_id == entrez_id).one_or_none()
 
-    def query_target_by_hgnc_symbol(self, hgnc_symbol):
+    def query_target_by_hgnc_symbol(self, hgnc_symbol: str) -> Optional[Target]:
         """Query for one target.
 
-        :param str hgnc_symbol: HGNC gene symbol
-        :rtype: Optional[Target]
+        :param hgnc_symbol: HGNC gene symbol
         """
         return self.session.query(Target).filter(Target.hgnc_symbol == hgnc_symbol).one_or_none()
 
-    def query_target_by_hgnc_identifier(self, hgnc_id):
+    def query_target_by_hgnc_identifier(self, hgnc_id: str) -> Optional[Target]:
         """Query for one target.
 
-        :param str hgnc_id: HGNC gene identifier
-        :rtype: Optional[Target]
+        :param hgnc_id: HGNC gene identifier
         """
         return self.session.query(Target).filter(Target.hgnc_id == hgnc_id).one_or_none()
 
@@ -289,24 +258,21 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             return self.query_target_by_entrez_id(name)
         raise IndexError
 
-    def enrich_rnas(self, graph):
-        """Add all of the miRNA inhibitors of the RNA nodes in the graph.
-
-        :param pybel.BELGraph graph: A BEL graph
-        """
+    def enrich_rnas(self, graph: BELGraph):
+        """Add all of the miRNA inhibitors of the RNA nodes in the graph."""
         log.debug('enriching inhibitors of RNA')
         count = 0
 
-        for node, data in graph.nodes(data=True):
-            if data[FUNCTION] != RNA:
+        for node in graph:
+            if node[FUNCTION] != RNA:
                 continue
 
-            if NAMESPACE not in data:
+            if NAMESPACE not in node:
                 continue
 
-            namespace = data[NAMESPACE]
-            identifier = data.get(IDENTIFIER)
-            name = data.get(NAME)
+            namespace = node[NAMESPACE]
+            identifier = node.get(IDENTIFIER)
+            name = node.get(NAME)
 
             if namespace.lower() == 'hgnc':
                 target = self._enrich_rna_handle_hgnc(identifier, name)
@@ -317,14 +283,14 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
                 continue
 
             if target is None:
-                log.warning("Unable to find RNA: %s:%s", namespace, _get_name(data))
+                log.warning("Unable to find RNA: %s:%s", namespace, _get_name(node))
                 continue
 
             for interaction in target.interactions:
                 for evidence in interaction.evidences:
                     count += 1
                     graph.add_qualified_edge(
-                        interaction.mirna.as_bel(),
+                        interaction.mirna.as_gene_bel(),
                         node,
                         relation=DIRECTLY_DECREASES,
                         evidence=evidence.support,
@@ -337,11 +303,8 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         log.debug('added %d MTIs', count)
 
-    def enrich_mirnas(self, graph):
-        """Add all target RNAs to the miRNA nodes in the graph.
-
-        :param pybel.BELGraph graph: A BEL graph
-        """
+    def enrich_mirnas(self, graph: BELGraph):
+        """Add all target RNAs to the miRNA nodes in the graph."""
         log.debug('enriching miRNA targets')
         count = 0
 
@@ -382,11 +345,8 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         log.debug('added %d MTIs', count)
 
-    def to_bel(self):
-        """Serialize miRNA-target interactions to BEL.
-
-        :rtype: pybel.BELGraph
-        """
+    def to_bel(self) -> BELGraph:
+        """Serialize miRNA-target interactions to BEL."""
         graph = BELGraph(
             name='miRTarBase',
             version='1.0.0',
@@ -400,10 +360,11 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         entrez_namespace = entrez_manager.upload_bel_namespace()
         graph.namespace_url[entrez_namespace.keyword] = entrez_namespace.url
 
-        graph.namespace_pattern[MIRBASE] = '^.*$'
+        mirbase_manager = bio2bel_mirbase.Manager(engine=self.engine, session=self.session)
+        mirbase_namespace = mirbase_manager.upload_bel_namespace()
+        graph.namespace_url[mirbase_namespace.keyword] = mirbase_namespace.url
 
         # TODO check if entrez has all species uploaded and optionally populate remaining species
-        # TODO look up miRNA by miRBase
 
         for evidence in tqdm(self.list_evidences(), total=self.count_evidences(),
                              desc='Mapping miRNA-target interactions to BEL'):

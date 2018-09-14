@@ -10,6 +10,7 @@ import setuptools
 
 PACKAGES = setuptools.find_packages(where='src')
 META_PATH = os.path.join('src', 'bio2bel_mirtarbase', '__init__.py')
+KEYWORDS = ['Biological Expression Language', 'Micro-RNA', 'Systems Biology', 'Networks Biology']
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
     'Environment :: Console',
@@ -87,9 +88,11 @@ if __name__ == '__main__':
         maintainer_email=find_meta('email'),
         license=find_meta('license'),
         classifiers=CLASSIFIERS,
+        keywords=KEYWORDS,
         packages=PACKAGES,
         package_dir={'': 'src'},
         install_requires=INSTALL_REQUIRES,
         extras_require=EXTRAS_REQUIRE,
         entry_points=ENTRY_POINTS,
+        zip_safe=False,
     )

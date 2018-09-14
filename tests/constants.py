@@ -4,8 +4,8 @@
 
 import os
 
-from bio2bel.testing import AbstractTemporaryCacheClassMixin
 import bio2bel_hgnc
+from bio2bel.testing import AbstractTemporaryCacheClassMixin
 from bio2bel_mirtarbase.manager import Manager
 
 dir_path = os.path.dirname(os.path.realpath(__file__))

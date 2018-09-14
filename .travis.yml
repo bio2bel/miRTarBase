@@ -17,6 +17,8 @@ jobs:
       env: TOXENV=manifest
     - env: TOXENV=flake8
     - env: TOXENV=pylint
+    - env: TOXENV=pyroma
+    - env: TOXENV=xenon
     # docs stage
     - stage: docs
       env: TOXENV=doc8
