@@ -19,11 +19,9 @@ or from the latest code on `GitHub <https://github.com/bio2bel/mirtarbase>`_ wit
 
    manager
    models
-   enrich
 
 Indices and tables
 ==================
-
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`

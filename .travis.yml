@@ -16,9 +16,9 @@ jobs:
     - stage: lint
       env: TOXENV=manifest
     - env: TOXENV=flake8
-    - env: TOXENV=pylint
     - env: TOXENV=pyroma
     - env: TOXENV=xenon
+    - env: TOXENV=vulture
     # docs stage
     - stage: docs
       env: TOXENV=doc8
@@ -30,7 +30,8 @@ jobs:
 
 matrix:
   allow_failures:
-      - env: TOXENV=pylint
+      - env: TOXENV=xenon
+      - env: TOXENV=vulture
 
 install:
     - sh -c 'if [ "$TOXENV" = "py" ]; then pip install tox codecov; else pip install tox; fi'
