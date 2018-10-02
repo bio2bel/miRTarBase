@@ -27,6 +27,7 @@ INSTALL_REQUIRES = [
     'bio2bel>=0.1.5',
     'bio2bel_hgnc>=0.1.0',
     'bio2bel_entrez>=0.1.0',
+    'bio2bel_mirbase',
     'pandas',
     'sqlalchemy',
     'xlrd',

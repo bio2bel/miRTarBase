@@ -2,9 +2,8 @@
 
 """Tests for Bio2BEL miRTarBase."""
 
-from bio2bel_mirtarbase import enrich_rnas
 from bio2bel_mirtarbase.manager import _build_entrez_map
-from bio2bel_mirtarbase.models import Evidence, HGNC, MIRBASE, NCBIGENE, Species
+from bio2bel_mirtarbase.models import Evidence, HGNC, MIRBASE, Mirna, NCBIGENE, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
 from pybel.dsl import mirna, rna
@@ -78,37 +77,31 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertIsNotNone(ev2)
         self.assertEqual("Luciferase reporter assay//qRT-PCR//Western blot//Reporter assay;Microarray", ev2.experiment)
 
-    def check_mir5(self, model):
-        """Help check the model has the right information for mmu-miR-124-3p.
-
-        :type model: Mirna
-        """
+    def check_mir5(self, model: Mirna):
+        """Help check the model has the right information for mmu-miR-124-3p."""
         self.assertIsNotNone(model)
         self.assertEqual("mmu-miR-124-3p", model.name)
         self.assertTrue(any('MIRT000005' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.as_gene_bel()
+        bel_data = model.as_bel()
 
-        self.assertEqual(mi5_data[FUNCTION], bel_data[FUNCTION])
-        self.assertEqual(mi5_data[NAME], bel_data[NAME])
-        self.assertEqual(mi5_data[NAMESPACE], bel_data[NAMESPACE])
+        self.assertEqual(mi5_data.function, bel_data.function)
+        self.assertEqual(mi5_data.name, bel_data.name)
+        self.assertEqual(mi5_data.namespace, bel_data.namespace)
 
     def test_mirna_by_mirtarbase_id(self):
         """Test getting an miRNA by a miRTarBase relationship identifier."""
         mi5 = self.manager.query_mirna_by_mirtarbase_identifier('MIRT000005')
         self.check_mir5(mi5)
 
-    def check_mir2(self, model):
-        """Help check the model has the right information for mmu-miR-124-3p.
-
-        :type model: Mirna
-        """
+    def check_mir2(self, model: Mirna):
+        """Help check the model has the right information for mmu-miR-124-3p."""
         self.assertIsNotNone(model)
         self.assertEqual("hsa-miR-20a-5p", model.name)
         self.assertEqual(2, len(model.interactions))
         self.assertTrue(any('MIRT000002' == interaction.mirtarbase_id for interaction in model.interactions))
 
-        bel_data = model.as_gene_bel()
+        bel_data = model.as_bel()
 
         self.assertEqual(mi2_data[FUNCTION], bel_data[FUNCTION])
         self.assertEqual(mi2_data[NAME], bel_data[NAME])
@@ -126,7 +119,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual("CXCR4", target.name)
         self.assertEqual("2561", target.hgnc_id)
 
-    def check_hif1a(self, model):
+    def check_hif1a(self, model: Target):
         """Help check the model has all the right information for HIF1A.
 
         :type model: Target
@@ -167,12 +160,12 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual(1, graph.number_of_nodes())
         self.assertEqual(0, graph.number_of_edges())
 
-        enrich_rnas(graph, manager=self.manager)  # should enrich with the HIF1A - hsa-miR-20a-5p interaction
+        self.manager.enrich_rnas(graph)  # should enrich with the HIF1A - hsa-miR-20a-5p interaction
         self.assertEqual(2, graph.number_of_nodes())
         self.assertEqual(3, graph.number_of_edges())
 
-        self.assertTrue(graph.has_node_with_data(mi2_data))
-        self.assertTrue(graph.has_edge(mi2_data.as_tuple(), node_data.as_tuple()))
+        self.assertIn(mi2_data, graph)
+        self.assertTrue(graph.has_edge(mi2_data, node_data))
 
     def test_enrich_hgnc_symbol(self):
         """Test enrichment of an HGNC gene symbol node."""

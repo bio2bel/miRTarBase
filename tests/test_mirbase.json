@@ -1,0 +1,48 @@
+[
+  {
+    "name": "cel-let-7",
+    "description": "Caenorhabditis elegans let-7 stem-loop",
+    "identifier": "MI0000001",
+    "products": [
+      {
+        "location": "17..38",
+        "accession": "MIMAT0000001",
+        "product": "cel-let-7-5p"
+      },
+      {
+        "location": "60..81",
+        "accession": "MIMAT0015091",
+        "product": "cel-let-7-3p"
+      }
+    ],
+    "xrefs": [
+      {
+        "database": "",
+        "identifier": ""
+      }
+    ]
+  },
+  {
+    "name": "cel-lin-4",
+    "description": "Caenorhabditis elegans lin-4 stem-loop",
+    "identifier": "MI0000002",
+    "products": [
+      {
+        "location": "16..36",
+        "accession": "MIMAT0000002",
+        "product": "cel-lin-4-5p"
+      },
+      {
+        "location": "55..76",
+        "accession": "MIMAT0015092",
+        "product": "cel-lin-4-3p"
+      }
+    ],
+    "xrefs": [
+      {
+        "database": "",
+        "identifier": ""
+      }
+    ]
+  }
+]

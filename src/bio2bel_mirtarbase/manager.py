@@ -3,21 +3,21 @@
 """Manager for Bio2BEL miRTarBase."""
 
 import logging
-import time
 from typing import List, Mapping, Optional
 
+import bio2bel_entrez
+import bio2bel_mirbase
+import time
+from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from tqdm import tqdm
 
-import bio2bel_entrez
 import bio2bel_hgnc
-import bio2bel_mirbase
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
-from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
-from pybel.constants import DIRECTLY_DECREASES, FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
+from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
@@ -60,16 +60,19 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         """Check if the database is already populated."""
         return 0 < self.count_mirnas()
 
-    def populate(self, source: Optional[str] = None, update_hgnc: bool = False) -> None:
+    def populate(self, source: Optional[str] = None, update: bool = False) -> None:
         """Populate database with the data from miRTarBase.
 
         :param source: path or link to data source needed for :func:`get_data`
-        :param update_hgnc: Should HGNC be updated?
+        :param update: Should HGNC an miRBase be updated?
         """
         hgnc_manager = bio2bel_hgnc.Manager(connection=self.connection)
-
-        if not hgnc_manager.is_populated() or update_hgnc:
+        if not hgnc_manager.is_populated() or update:
             hgnc_manager.populate()
+
+        mirbase_manager = bio2bel_mirbase.Manager(connection=self.connection)
+        if not mirbase_manager.is_populated() or update:
+            mirbase_manager.populate()
 
         t = time.time()
         log.info('getting data')
@@ -289,17 +292,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             for interaction in target.interactions:
                 for evidence in interaction.evidences:
                     count += 1
-                    graph.add_qualified_edge(
-                        interaction.mirna.as_gene_bel(),
-                        node,
-                        relation=DIRECTLY_DECREASES,
-                        evidence=evidence.support,
-                        citation=str(evidence.reference),
-                        annotations={
-                            'Experiment': evidence.experiment,
-                            'SupportType': evidence.support,
-                        }
-                    )
+                    evidence.add_to_graph(graph)
 
         log.debug('added %d MTIs', count)
 
@@ -310,16 +303,16 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         mirtarbase_names = set()
 
-        for node, data in graph.nodes(data=True):
-            if data[FUNCTION] != MIRNA or NAMESPACE not in data:
+        for node in graph:
+            if node[FUNCTION] != MIRNA or NAMESPACE not in node:
                 continue
 
-            namespace = data[NAMESPACE]
+            namespace = node[NAMESPACE]
 
             if namespace.lower() == 'mirtarbase':
-                if NAME in data:
-                    mirtarbase_names.add(data[NAME])
-                raise IndexError('no usable identifier for {}'.format(data))
+                if NAME in node:
+                    mirtarbase_names.add(node[NAME])
+                raise IndexError('no usable identifier for {}'.format(node))
 
             elif namespace.lower() in {'mirbase', 'hgnc'} | VALID_ENTREZ_NAMESPACES:
                 log.debug('not yet able to map %s', namespace)
@@ -333,17 +326,18 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             log.debug('no mirnas found')
             return
 
-        query = self.session \
-            .query(Mirna, Interaction, Evidence) \
-            .join(Interaction) \
-            .join(Evidence) \
-            .filter(Mirna.filter_name_in(mirtarbase_names))
-
+        query = self.get_mirna_interaction_evidences().filter(Mirna.filter_name_in(mirtarbase_names))
         for mirna, interaction, evidence in query:
             count += 1
             evidence.add_to_graph(graph)
 
         log.debug('added %d MTIs', count)
+
+    def get_mirna_interaction_evidences(self):
+        return self.session \
+            .query(Mirna, Interaction, Evidence) \
+            .join(Interaction) \
+            .join(Evidence)
 
     def to_bel(self) -> BELGraph:
         """Serialize miRNA-target interactions to BEL."""
@@ -366,8 +360,8 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         # TODO check if entrez has all species uploaded and optionally populate remaining species
 
-        for evidence in tqdm(self.list_evidences(), total=self.count_evidences(),
-                             desc='Mapping miRNA-target interactions to BEL'):
+        for mirna, interaction, evidence in tqdm(self.get_mirna_interaction_evidences(), total=self.count_evidences(),
+                                                 desc='Mapping miRNA-target interactions to BEL'):
             evidence.add_to_graph(graph)
 
         return graph
