@@ -1,13 +1,14 @@
-FROM python:3.6.5
+# 1. Build with: docker build -t bio2bel/mirtarbasebase .
+# 2. Run with docker run -p 5000:5000 bio2bel/mirtarbase (-p maps the port)
+FROM python:3.7.0
 MAINTAINER Charles Tapley Hoyt "cthoyt@gmail.com"
-
-RUN pip3 install --upgrade pip
-RUN pip3 install gunicorn mysqlclient
-
-ADD requirements.txt /
-RUN pip3 install -r requirements.txt
 
 COPY . /app
 WORKDIR /app
 
-RUN pip3 install .
+RUN pip install .[web]
+
+RUN bio2bel_mirtarbase populate
+
+EXPOSE 5000
+ENTRYPOINT bio2bel_mirtarbase web --port 5000 --host 0.0.0.0
