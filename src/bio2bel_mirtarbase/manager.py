@@ -14,7 +14,6 @@ import bio2bel_mirbase
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
-from bio2bel_entrez.constants import VALID_ENTREZ_NAMESPACES
 from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
@@ -22,7 +21,13 @@ from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
 
+__all__ = [
+    'Manager',
+]
+
 log = logging.getLogger(__name__)
+
+VALID_ENTREZ_NAMESPACES = {'egid', 'eg', 'entrez', 'ncbigene'}
 
 
 def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanGene]:
