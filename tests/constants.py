@@ -5,9 +5,8 @@
 import json
 import os
 
-import bio2bel_mirbase
-
 import bio2bel_hgnc
+import bio2bel_mirbase
 import bio2bel_mirtarbase
 from bio2bel.testing import AbstractTemporaryCacheClassMixin
 

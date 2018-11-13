@@ -3,18 +3,18 @@
 """Manager for Bio2BEL miRTarBase."""
 
 import logging
+import time
 from typing import List, Mapping, Optional
 
-import bio2bel_entrez
-import bio2bel_mirbase
-import time
-from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from tqdm import tqdm
 
+import bio2bel_entrez
 import bio2bel_hgnc
+import bio2bel_mirbase
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
+from bio2bel_entrez.constants import VALID_ENTREZ_NAMESPACES
 from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
@@ -334,6 +334,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         log.debug('added %d MTIs', count)
 
     def get_mirna_interaction_evidences(self):
+        """Get interaction evidences."""
         return self.session \
             .query(Mirna, Interaction, Evidence) \
             .join(Interaction) \
