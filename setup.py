@@ -18,13 +18,15 @@ CLASSIFIERS = [
     'Intended Audience :: Science/Research',
     'Operating System :: OS Independent',
     'Programming Language :: Python',
+    'Programming Language :: Python :: 3 :: Only',
     'Programming Language :: Python :: 3.6',
+    'Programming Language :: Python :: 3.7',
     'Topic :: Scientific/Engineering :: Bio-Informatics',
     'License :: OSI Approved :: MIT License',
 ]
 INSTALL_REQUIRES = [
-    'pybel>=0.12.1',
-    'bio2bel>=0.1.5',
+    'pybel>=0.12.0,<0.13.0',
+    'bio2bel>=0.2.0,<0.3.0',
     'bio2bel_hgnc>=0.1.0',
     'bio2bel_entrez>=0.1.0',
     'bio2bel_mirbase',
@@ -35,7 +37,18 @@ INSTALL_REQUIRES = [
     'tqdm',
 ]
 EXTRAS_REQUIRE = {
-    'web': ['flask', 'flask_admin'],
+    'web': [
+        'flask',
+        'flask_admin',
+    ],
+    'docs': [
+        'flask',
+        'flask_admin',
+        'sphinx',
+        'sphinx-rtd-theme',
+        'sphinx-click',
+        'sphinx-autodoc-typehints',
+    ],
 }
 ENTRY_POINTS = {
     'bio2bel': [
