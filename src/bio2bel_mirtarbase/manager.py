@@ -271,7 +271,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         log.debug('enriching inhibitors of RNA')
         count = 0
 
-        for node in graph:
+        for node in list(graph):
             if node[FUNCTION] != RNA:
                 continue
 

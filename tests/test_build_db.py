@@ -117,6 +117,7 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         target = self.manager.query_target_by_entrez_id('7852')
         self.assertIsNotNone(target)
         self.assertEqual("CXCR4", target.name)
+        self.assertIsNotNone(target.hgnc_id)
         self.assertEqual("2561", target.hgnc_id)
 
     def check_hif1a(self, model: Target):
@@ -126,8 +127,11 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         """
         self.assertIsNotNone(model)
         self.assertEqual('HIF1A', model.name)
+        self.assertIsNotNone(model.hgnc_id)
         self.assertEqual('4910', model.hgnc_id)
+        self.assertIsNotNone(model.hgnc_symbol)
         self.assertEqual('HIF1A', model.hgnc_symbol)
+        self.assertIsNotNone(model.entrez_id)
         self.assertEqual('3091', model.entrez_id)
 
         self.assertEqual(1, len(model.interactions))  # all different evidences to hsa-miR-20a-5p
