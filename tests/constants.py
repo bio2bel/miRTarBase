@@ -35,7 +35,7 @@ class TemporaryFilledCacheMixin(AbstractTemporaryCacheClassMixin):
         cls.mirbase_manager = bio2bel_mirbase.Manager(connection=cls.connection)
         with open(TEST_MIRBASE_JSON) as file:
             mirbase_list = json.load(file)
-            cls.mirbase_manager._populate_list(mirbase_list)
+            cls.mirbase_manager._populate_definitions_helper(mirbase_list)
 
         super().setUpClass()
 
