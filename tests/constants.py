@@ -27,8 +27,6 @@ class TemporaryFilledCacheMixin(AbstractTemporaryCacheClassMixin):
     @classmethod
     def setUpClass(cls):
         """Create temporary file and populate database."""
-        super().setUpClass()
-
         cls.hgnc_manager = bio2bel_hgnc.Manager(connection=cls.connection)
         cls.hgnc_manager._create_tables()
         json_data = cls.hgnc_manager.load_hgnc_json(hgnc_file_path=TEST_HGNC_JSON)
@@ -38,6 +36,8 @@ class TemporaryFilledCacheMixin(AbstractTemporaryCacheClassMixin):
         with open(TEST_MIRBASE_JSON) as file:
             mirbase_list = json.load(file)
             cls.mirbase_manager._populate_list(mirbase_list)
+
+        super().setUpClass()
 
     @classmethod
     def populate(cls):
