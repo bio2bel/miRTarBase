@@ -22,6 +22,10 @@ mi5_data = mirna(name='mmu-miR-124-3p', namespace=MIRBASE)
 class TestBuildDatabase(TemporaryFilledCacheMixin):
     """Test the database."""
 
+    def test_count_human_genes(self):
+        """Test the number of genes in Bio2BEL HGNC."""
+        self.assertEqual(2, self.hgnc_manager.count_human_genes())
+
     def test_count_mirnas(self):
         """Test the number of miRNAs."""
         self.assertEqual(5, self.manager.count_mirnas())
