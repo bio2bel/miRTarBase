@@ -8,6 +8,7 @@ from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstra
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+import pybel.dsl
 from pybel import BELGraph
 from pybel.dsl import mirna, rna
 from .constants import MODULE_NAME
@@ -16,11 +17,11 @@ NCBIGENE = 'ncbigene'
 MIRBASE = 'mirbase'
 HGNC = 'hgnc'
 
-MIRNA_TABLE_NAME = '{}_mirna'.format(MODULE_NAME)
-TARGET_TABLE_NAME = '{}_target'.format(MODULE_NAME)
-SPECIES_TABLE_NAME = '{}_species'.format(MODULE_NAME)
-EVIDENCE_TABLE_NAME = '{}_evidence'.format(MODULE_NAME)
-INTERACTION_TABLE_NAME = '{}_interaction'.format(MODULE_NAME)
+MIRNA_TABLE_NAME = f'{MODULE_NAME}_mirna'
+TARGET_TABLE_NAME = f'{MODULE_NAME}_target'
+SPECIES_TABLE_NAME = f'{MODULE_NAME}_species'
+EVIDENCE_TABLE_NAME = f'{MODULE_NAME}_evidence'
+INTERACTION_TABLE_NAME = f'{MODULE_NAME}_interaction'
 
 # create base class
 Base = declarative_base()
@@ -42,7 +43,7 @@ class Species(Base):
         :param include_id: Include the database identifier?
         """
         rv = {
-            'name': str(self.name)
+            'name': str(self.name),
         }
 
         if include_id:
@@ -98,7 +99,7 @@ class Target(Base):
     hgnc_symbol = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene symbol")
     hgnc_id = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
+    species_id = Column(Integer, ForeignKey(f'{SPECIES_TABLE_NAME}.id'), nullable=False, doc='The host species')
     species = relationship('Species')
 
     def __str__(self):  # noqa: D105
@@ -115,7 +116,7 @@ class Target(Base):
     def serialize_to_hgnc_node(self) -> rna:
         """Serialize to PyBEL node data dictionary."""
         if self.hgnc_id is None:
-            raise ValueError('missing HGNC information for Entrez Gene {}'.format(self.entrez_id))
+            raise ValueError(f'missing HGNC information for Entrez Gene {self.entrez_id}')
 
         return rna(
             namespace=HGNC,
@@ -129,7 +130,7 @@ class Target(Base):
             'species': self.species.to_json(),
             'identifiers': [
                 self.serialize_to_entrez_node(),
-                self.serialize_to_hgnc_node()
+                self.serialize_to_hgnc_node(),
             ]
         }
 
@@ -149,11 +150,11 @@ class Interaction(Base):
     mirtarbase_id = Column(String(64), nullable=False, unique=True, index=True,
                            doc="miRTarBase interaction identifier which is unique for a pair of miRNA and RNA targets")
 
-    mirna_id = Column(Integer, ForeignKey("{}.id".format(MIRNA_TABLE_NAME)), nullable=False, index=True,
+    mirna_id = Column(Integer, ForeignKey(f'{MIRNA_TABLE_NAME}.id'), nullable=False, index=True,
                       doc='The miRTarBase identifier of the interacting miRNA')
     mirna = relationship(Mirna, backref="interactions")
 
-    target_id = Column(Integer, ForeignKey("{}.id".format(TARGET_TABLE_NAME)), nullable=False, index=True,
+    target_id = Column(Integer, ForeignKey(f'{TARGET_TABLE_NAME}.id'), nullable=False, index=True,
                        doc='The Entrez gene identifier of the interacting RNA')
     target = relationship(Target, backref="interactions")
 
@@ -163,7 +164,7 @@ class Interaction(Base):
     )
 
     def __str__(self):  # noqa: D105
-        return '{} =| {}'.format(self.mirna.name, self.target.name)
+        return f'{self.mirna.name} =| {self.target.name}'
 
 
 class Evidence(Base):
@@ -179,7 +180,7 @@ class Evidence(Base):
                      doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
     reference = Column(String(255), nullable=False, doc="Reference PubMed Identifier")
 
-    interaction_id = Column(Integer, ForeignKey("{}.id".format(INTERACTION_TABLE_NAME)),
+    interaction_id = Column(Integer, ForeignKey(f'{INTERACTION_TABLE_NAME}.id'),
                             doc='The interaction for which this evidence was captured')
     interaction = relationship(Interaction, backref="evidences")
 
@@ -188,14 +189,18 @@ class Evidence(Base):
 
     def add_to_graph(self, graph: BELGraph) -> str:
         """Add this edge to the BEL graph and return the ket for that edge."""
-        try:
-            target_node = self.interaction.target.serialize_to_hgnc_node()
-        except ValueError:
-            target_node = self.interaction.target.serialize_to_entrez_node()
-
-        return graph.add_directly_decreases(
+        return self._add_to_graph(
+            graph,
             self.interaction.mirna.as_bel(),
-            target_node,
+            self.interaction.target.serialize_to_entrez_node(),
+
+        )
+
+    def _add_to_graph(self, graph: BELGraph, source: pybel.dsl.MicroRna, target: pybel.dsl.Rna) -> str:
+        """Add this edge to the BEL graph and return the ket for that edge."""
+        return graph.add_directly_decreases(
+            source,
+            target,
             evidence=str(self.support),
             citation=str(self.reference),
             annotations={

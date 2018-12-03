@@ -3,15 +3,14 @@
 """Manager for Bio2BEL miRTarBase."""
 
 import logging
+import time
 from typing import List, Mapping, Optional
 
-import bio2bel_entrez
-import bio2bel_mirbase
-import time
-from bio2bel_entrez.manager import VALID_ENTREZ_NAMESPACES
 from tqdm import tqdm
 
+import bio2bel_entrez
 import bio2bel_hgnc
+import bio2bel_mirbase
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
@@ -22,7 +21,13 @@ from .constants import MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
 
+__all__ = [
+    'Manager',
+]
+
 log = logging.getLogger(__name__)
+
+VALID_ENTREZ_NAMESPACES = {'egid', 'eg', 'entrez', 'ncbigene'}
 
 
 def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanGene]:
@@ -266,14 +271,14 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         log.debug('enriching inhibitors of RNA')
         count = 0
 
-        for node in graph:
+        for node in list(graph):
             if node[FUNCTION] != RNA:
                 continue
 
-            if NAMESPACE not in node:
+            namespace = node.get(NAMESPACE)
+            if namespace is None:
                 continue
 
-            namespace = node[NAMESPACE]
             identifier = node.get(IDENTIFIER)
             name = node.get(NAME)
 
@@ -292,7 +297,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             for interaction in target.interactions:
                 for evidence in interaction.evidences:
                     count += 1
-                    evidence.add_to_graph(graph)
+                    evidence._add_to_graph(graph, evidence.interaction.mirna.as_bel(), node)
 
         log.debug('added %d MTIs', count)
 
@@ -334,6 +339,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         log.debug('added %d MTIs', count)
 
     def get_mirna_interaction_evidences(self):
+        """Get interaction evidences."""
         return self.session \
             .query(Mirna, Interaction, Evidence) \
             .join(Interaction) \

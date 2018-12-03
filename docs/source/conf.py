@@ -60,7 +60,7 @@ author = 'Charles Tapley Hoyt and Colin Birkenbihl'
 # built documents.
 #
 # The full version, including alpha/beta/rc tags.
-release = '0.1.3-dev'
+release = '0.2.0'
 
 # The short X.Y version.
 parsed_version = re.match(
