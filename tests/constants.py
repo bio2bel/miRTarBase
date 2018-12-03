@@ -25,21 +25,6 @@ class TemporaryFilledCacheMixin(AbstractTemporaryCacheClassMixin):
     mirbase_manager: bio2bel_mirbase.Manager
 
     @classmethod
-    def setUpClass(cls):
-        """Create temporary file and populate database."""
-        cls.hgnc_manager = bio2bel_hgnc.Manager(connection=cls.connection)
-        cls.hgnc_manager._create_tables()
-        json_data = cls.hgnc_manager.load_hgnc_json(hgnc_file_path=TEST_HGNC_JSON)
-        cls.hgnc_manager.insert_hgnc(hgnc_dict=json_data, silent=True, low_memory=False)
-
-        cls.mirbase_manager = bio2bel_mirbase.Manager(connection=cls.connection)
-        with open(TEST_MIRBASE_JSON) as file:
-            mirbase_list = json.load(file)
-            cls.mirbase_manager._populate_definitions_helper(mirbase_list)
-
-        super().setUpClass()
-
-    @classmethod
     def populate(cls):
         """Fill the HGNC and mirTarBase databases.
 
@@ -57,4 +42,14 @@ class TemporaryFilledCacheMixin(AbstractTemporaryCacheClassMixin):
         MIRT000006	hsa-miR-146a-5p	Homo sapiens	CXCR4	7852	Homo sapiens	Microarray	Functional MTI (Weak)	20375304
         MIRT000012	hsa-miR-122-5p	Homo sapiens	CYP7A1	1581	Homo sapiens	qRT-PCR//Luciferase reporter assay	Functional MTI	20351063
         """
+        cls.hgnc_manager = bio2bel_hgnc.Manager(connection=cls.connection)
+        cls.hgnc_manager._create_tables()
+        json_data = cls.hgnc_manager.load_hgnc_json(hgnc_file_path=TEST_HGNC_JSON)
+        cls.hgnc_manager.insert_hgnc(hgnc_dict=json_data, silent=True, low_memory=False)
+
+        cls.mirbase_manager = bio2bel_mirbase.Manager(connection=cls.connection)
+        with open(TEST_MIRBASE_JSON) as file:
+            mirbase_list = json.load(file)
+            cls.mirbase_manager._populate_definitions_helper(mirbase_list)
+
         cls.manager.populate(TEST_MIRTARBASE_EXCEL)

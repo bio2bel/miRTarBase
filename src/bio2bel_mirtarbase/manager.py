@@ -275,10 +275,10 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             if node[FUNCTION] != RNA:
                 continue
 
-            if NAMESPACE not in node:
+            namespace = node.get(NAMESPACE)
+            if namespace is None:
                 continue
 
-            namespace = node[NAMESPACE]
             identifier = node.get(IDENTIFIER)
             name = node.get(NAME)
 
@@ -297,7 +297,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             for interaction in target.interactions:
                 for evidence in interaction.evidences:
                     count += 1
-                    evidence.add_to_graph(graph)
+                    evidence._add_to_graph(graph, evidence.interaction.mirna.as_bel(), node)
 
         log.debug('added %d MTIs', count)
 

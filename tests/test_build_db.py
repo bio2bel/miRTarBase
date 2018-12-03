@@ -6,7 +6,7 @@ from bio2bel_mirtarbase.manager import _build_entrez_map
 from bio2bel_mirtarbase.models import Evidence, HGNC, MIRBASE, Mirna, NCBIGENE, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
-from pybel.dsl import mirna, rna
+from pybel.dsl import BaseAbundance, mirna, rna
 from tests.constants import TemporaryFilledCacheMixin
 
 hif1a_symbol = 'HIF1A'
@@ -155,25 +155,29 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         model = self.manager.query_target_by_hgnc_symbol(hif1a_symbol)
         self.check_hif1a(model)
 
-    def help_enrich_hif1a(self, node_data):
+    def help_enrich_hif1a(self, node: BaseAbundance):
         """Help check that different versions of HIF1A can be enriched properly.
 
-        :param pybel.dsl.BaseAbundance node_data: A PyBEL data dictionary
+        :param pybel.dsl.BaseAbundance node: A PyBEL data dictionary
         """
-        self.assertTrue(NAME in node_data or IDENTIFIER in node_data,
-                        msg='Node missing information: {}'.format(node_data))
+        self.assertIsInstance(node, BaseAbundance)
+        self.assertTrue(NAME in node or IDENTIFIER in node,
+                        msg='Node missing information: {}'.format(node))
 
         graph = BELGraph()
-        graph.add_node_from_data(node_data)
+        graph.add_node_from_data(node)
         self.assertEqual(1, graph.number_of_nodes())
         self.assertEqual(0, graph.number_of_edges())
 
         self.manager.enrich_rnas(graph)  # should enrich with the HIF1A - hsa-miR-20a-5p interaction
-        self.assertEqual(2, graph.number_of_nodes())
+        self.assertEqual(2, graph.number_of_nodes(), msg=f"""
+        Nodes:
+        {", ".join(map(str, graph))}
+        """)
         self.assertEqual(3, graph.number_of_edges())
 
         self.assertIn(mi2_data, graph)
-        self.assertTrue(graph.has_edge(mi2_data, node_data))
+        self.assertTrue(graph.has_edge(mi2_data, node))
 
     def test_enrich_hgnc_symbol(self):
         """Test enrichment of an HGNC gene symbol node."""
