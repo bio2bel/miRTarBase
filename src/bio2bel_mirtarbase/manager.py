@@ -52,9 +52,10 @@ def _get_name(data):
 
 
 class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
-    """Manage the mirTarBase database."""
+    """miRNA-target interactions."""
 
     module_name = MODULE_NAME
+    edge_model = Interaction
     flask_admin_models = [Mirna, Target, Species, Interaction, Evidence]
 
     @property
@@ -203,11 +204,8 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         :param mirtarbase_id: An miRTarBase interaction identifier
         """
         interaction = self.session.query(Interaction).filter(Interaction.mirtarbase_id == mirtarbase_id).one_or_none()
-
-        if interaction is None:
-            return
-
-        return interaction.mirna
+        if interaction is not None:
+            return interaction.mirna
 
     def query_mirna_by_mirtarbase_name(self, name: str) -> Optional[Mirna]:
         """Get an miRNA by its miRTarBase name.
@@ -219,8 +217,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     def query_mirna_by_hgnc_identifier(self, hgnc_id: str) -> Optional[Mirna]:
         """Query for a miRNA by its HGNC identifier.
 
-        :param str hgnc_id: HGNC gene identifier
-        :rtype: Optional[Mirna]
+        :param hgnc_id: HGNC gene identifier
         """
         raise NotImplementedError
 
