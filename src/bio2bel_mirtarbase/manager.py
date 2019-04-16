@@ -337,10 +337,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
     def get_mirna_interaction_evidences(self):
         """Get interaction evidences."""
-        return self.session \
-            .query(Mirna, Interaction, Evidence) \
-            .join(Interaction) \
-            .join(Evidence)
+        return self.session.query(Evidence).join(Evidence.interaction).join(Interaction.mirna)
 
     def to_bel(self) -> BELGraph:
         """Serialize miRNA-target interactions to BEL."""
@@ -362,9 +359,12 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         graph.namespace_url[mirbase_namespace.keyword] = mirbase_namespace.url
 
         # TODO check if entrez has all species uploaded and optionally populate remaining species
-
-        for mirna, interaction, evidence in tqdm(self.get_mirna_interaction_evidences(), total=self.count_evidences(),
-                                                 desc='Mapping miRNA-target interactions to BEL'):
+        it = tqdm(
+            self.get_mirna_interaction_evidences(),
+            total=self.count_evidences(),
+            desc='Mapping miRNA-target interactions to BEL',
+        )
+        for evidence in it:
             evidence.add_to_graph(graph)
 
         return graph
