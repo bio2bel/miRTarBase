@@ -4,7 +4,7 @@
 
 from .manager import Manager  # noqa: F401
 
-__version__ = '0.2.1'
+__version__ = '0.2.2-dev'
 
 __title__ = 'bio2bel_mirtarbase'
 __description__ = "A package for converting miRTarBase to BEL"
