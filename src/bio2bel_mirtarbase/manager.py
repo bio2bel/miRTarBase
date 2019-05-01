@@ -55,12 +55,9 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
     """miRNA-target interactions."""
 
     module_name = MODULE_NAME
+    _base = Base
     edge_model = Interaction
     flask_admin_models = [Mirna, Target, Species, Interaction, Evidence]
-
-    @property
-    def _base(self):
-        return Base
 
     def is_populated(self) -> bool:
         """Check if the database is already populated."""
