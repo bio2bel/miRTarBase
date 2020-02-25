@@ -6,7 +6,7 @@ import os
 
 from bio2bel.utils import get_data_dir
 
-VERSION = '0.2.3-dev'
+VERSION = '0.3.0-dev'
 
 MODULE_NAME = 'mirtarbase'
 DATA_DIR = get_data_dir(MODULE_NAME)
