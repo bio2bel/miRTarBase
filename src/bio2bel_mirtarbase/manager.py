@@ -17,7 +17,7 @@ from bio2bel.manager.flask_manager import FlaskMixin
 from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
-from .constants import MODULE_NAME
+from .constants import MIRTARBASE_VERSION, MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
 from .parser import get_data
 
@@ -25,14 +25,14 @@ __all__ = [
     'Manager',
 ]
 
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 VALID_ENTREZ_NAMESPACES = {'egid', 'eg', 'entrez', 'ncbigene'}
 
 
 def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanGene]:
     """Build a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`."""
-    log.info('getting entrez mapping')
+    logger.info('getting entrez mapping')
 
     t = time.time()
     emap = {
@@ -40,7 +40,7 @@ def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanG
         for model in hgnc_manager.hgnc()
         if model.entrez
     }
-    log.info('got entrez mapping in %.2f seconds', time.time() - t)
+    logger.info('got entrez mapping in %.2f seconds', time.time() - t)
     return emap
 
 
@@ -78,9 +78,9 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             mirbase_manager.populate()
 
         t = time.time()
-        log.info('getting data')
+        logger.info('getting data')
         df = get_data(source)
-        log.info('got data in %.2f seconds', time.time() - t)
+        logger.info('got data in %.2f seconds', time.time() - t)
 
         name_mirna = {}
         target_set = {}
@@ -89,7 +89,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
         emap = _build_entrez_map(hgnc_manager)
 
-        log.info('building models')
+        logger.info('building models')
         t = time.time()
         for (index, mirtarbase_id, mirna_name, mirna_species, gene_name, entrez_id, target_species, exp, sup_type,
              pubmed) in tqdm(df.itertuples(), total=len(df.index)):
@@ -154,12 +154,12 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             )
             self.session.add(new_evidence)
 
-        log.info('built models in %.2f seconds', time.time() - t)
+        logger.info('built models in %.2f seconds', time.time() - t)
 
-        log.info('committing models')
+        logger.info('committing models')
         t = time.time()
         self.session.commit()
-        log.info('committed after %.2f seconds', time.time() - t)
+        logger.info('committed after %.2f seconds', time.time() - t)
 
     def count_targets(self) -> int:
         """Count the number of targets in the database."""
@@ -262,7 +262,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
     def enrich_rnas(self, graph: BELGraph):
         """Add all of the miRNA inhibitors of the RNA nodes in the graph."""
-        log.debug('enriching inhibitors of RNA')
+        logger.debug('enriching inhibitors of RNA')
         count = 0
 
         for node in list(graph):
@@ -281,11 +281,11 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             elif namespace.lower() in VALID_ENTREZ_NAMESPACES:
                 target = self._enrich_rna_handle_entrez(identifier, name)
             else:
-                log.warning("Unable to map namespace: %s", namespace)
+                logger.warning("Unable to map namespace: %s", namespace)
                 continue
 
             if target is None:
-                log.warning("Unable to find RNA: %s:%s", namespace, _get_name(node))
+                logger.warning("Unable to find RNA: %s:%s", namespace, _get_name(node))
                 continue
 
             for interaction in target.interactions:
@@ -293,11 +293,11 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
                     count += 1
                     evidence._add_to_graph(graph, evidence.interaction.mirna.as_bel(), node)
 
-        log.debug('added %d MTIs', count)
+        logger.debug('added %d MTIs', count)
 
     def enrich_mirnas(self, graph: BELGraph):
         """Add all target RNAs to the miRNA nodes in the graph."""
-        log.debug('enriching miRNA targets')
+        logger.debug('enriching miRNA targets')
         count = 0
 
         mirtarbase_names = set()
@@ -314,15 +314,15 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
                 raise IndexError('no usable identifier for {}'.format(node))
 
             elif namespace.lower() in {'mirbase', 'hgnc'} | VALID_ENTREZ_NAMESPACES:
-                log.debug('not yet able to map %s', namespace)
+                logger.debug('not yet able to map %s', namespace)
                 continue
 
             else:
-                log.debug("unable to map namespace: %s", namespace)
+                logger.debug("unable to map namespace: %s", namespace)
                 continue
 
         if not mirtarbase_names:
-            log.debug('no mirnas found')
+            logger.debug('no mirnas found')
             return
 
         query = self.get_mirna_interaction_evidences().filter(Mirna.filter_name_in(mirtarbase_names))
@@ -330,7 +330,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
             count += 1
             evidence.add_to_graph(graph)
 
-        log.debug('added %d MTIs', count)
+        logger.debug('added %d MTIs', count)
 
     def get_mirna_interaction_evidences(self):
         """Get interaction evidences."""
@@ -340,20 +340,13 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         """Serialize miRNA-target interactions to BEL."""
         graph = BELGraph(
             name='miRTarBase',
-            version='1.0.0',
+            version=MIRTARBASE_VERSION,
         )
-
-        hgnc_manager = bio2bel_hgnc.Manager(engine=self.engine, session=self.session)
-        hgnc_namespace = hgnc_manager.upload_bel_namespace()
-        graph.namespace_url[hgnc_namespace.keyword] = hgnc_namespace.url
-
-        entrez_manager = bio2bel_entrez.Manager(engine=self.engine, session=self.session)
-        entrez_namespace = entrez_manager.upload_bel_namespace()
-        graph.namespace_url[entrez_namespace.keyword] = entrez_namespace.url
-
-        mirbase_manager = bio2bel_mirbase.Manager(engine=self.engine, session=self.session)
-        mirbase_namespace = mirbase_manager.upload_bel_namespace()
-        graph.namespace_url[mirbase_namespace.keyword] = mirbase_namespace.url
+        graph.namespace_pattern.update(dict(
+            hgnc=bio2bel_hgnc.Manager.identifiers_pattern,
+            entrez=bio2bel_entrez.Manager.identifiers_pattern,
+            mirbase=bio2bel_mirbase.Manager.identifiers_pattern,
+        ))
 
         # TODO check if entrez has all species uploaded and optionally populate remaining species
         it = tqdm(

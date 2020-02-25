@@ -11,6 +11,8 @@ VERSION = '0.2.3-dev'
 MODULE_NAME = 'mirtarbase'
 DATA_DIR = get_data_dir(MODULE_NAME)
 
+MIRTARBASE_VERSION = '6.1'
+
 #: Data source
-DATA_URL = 'http://mirtarbase.mbc.nctu.edu.tw/cache/download/6.1/miRTarBase_MTI.xlsx'
+DATA_URL = f'http://mirtarbase.mbc.nctu.edu.tw/cache/download/{MIRTARBASE_VERSION}/miRTarBase_MTI.xlsx'
 DATA_FILE_PATH = os.path.join(DATA_DIR, 'miRTarBase_MTI.xlsx')

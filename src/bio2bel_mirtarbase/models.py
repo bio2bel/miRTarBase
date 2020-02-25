@@ -4,13 +4,13 @@
 
 from typing import Iterable, Mapping
 
+import pybel.dsl
+import pybel.dsl
+from pybel import BELGraph
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-import pybel.dsl
-from pybel import BELGraph
-from pybel.dsl import mirna, rna
 from .constants import MODULE_NAME
 
 NCBIGENE = 'ncbigene'
@@ -66,15 +66,15 @@ class Mirna(Base):
     mirbase_id = Column(String(255), nullable=True, unique=True, index=True, doc="miRBase identifier")
     entrez_id = Column(String(255), nullable=True, unique=True, index=True, doc="Entrez Gene identifier")
 
-    species_id = Column(Integer, ForeignKey('{}.id'.format(SPECIES_TABLE_NAME)), nullable=False, doc='The host species')
+    species_id = Column(Integer, ForeignKey(f'{Species.__tablename__}.id'), nullable=False, doc='The host species')
     species = relationship(Species)
 
-    def as_bel(self) -> mirna:
+    def as_bel(self) -> pybel.dsl.MicroRna:
         """Serialize to a PyBEL node data dictionary."""
-        return mirna(
+        return pybel.dsl.MicroRna(
             namespace=MIRBASE,
-            name=str(self.name),
-            # TODO need mappings / real identifiers!
+            name=self.name,
+            identifier=self.mirbase_id,
         )
 
     @staticmethod
@@ -105,20 +105,20 @@ class Target(Base):
     def __str__(self):  # noqa: D105
         return self.name
 
-    def serialize_to_entrez_node(self) -> rna:
+    def serialize_to_entrez_node(self) -> pybel.dsl.Rna:
         """Serialize to PyBEL node data dictionary."""
-        return rna(
+        return pybel.dsl.Rna(
             namespace=NCBIGENE,
             identifier=str(self.entrez_id),
-            name=str(self.name)
+            name=str(self.name),
         )
 
-    def serialize_to_hgnc_node(self) -> rna:
+    def serialize_to_hgnc_node(self) -> pybel.dsl.Rna:
         """Serialize to PyBEL node data dictionary."""
         if self.hgnc_id is None:
             raise ValueError(f'missing HGNC information for Entrez Gene {self.entrez_id}')
 
-        return rna(
+        return pybel.dsl.Rna(
             namespace=HGNC,
             identifier=str(self.hgnc_id),
             name=str(self.hgnc_symbol)
@@ -174,8 +174,12 @@ class Evidence(Base):
 
     id = Column(Integer, primary_key=True)
 
-    experiment = Column(String(255), nullable=False,
-                        doc="Experiments made to find miRNA - target interaction. E.g. 'Luciferase reporter assay//qRT-PCR//Western blot'")
+    experiment = Column(
+        String(255),
+        nullable=False,
+        doc="Experiments made to find miRNA - target interaction."
+            " E.g. 'Luciferase reporter assay//qRT-PCR//Western blot'"
+    )
     support = Column(String(255), nullable=False,
                      doc="Type and strength of the miRNA - target interaction. E.g. 'Functional MTI (Weak)'")
     reference = Column(String(255), nullable=False, doc="Reference PubMed Identifier")
@@ -193,7 +197,6 @@ class Evidence(Base):
             graph,
             self.interaction.mirna.as_bel(),
             self.interaction.target.serialize_to_entrez_node(),
-
         )
 
     def _add_to_graph(self, graph: BELGraph, source: pybel.dsl.MicroRna, target: pybel.dsl.Rna) -> str:
