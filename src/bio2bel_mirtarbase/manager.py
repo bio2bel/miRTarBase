@@ -90,11 +90,11 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         emap = _build_entrez_map(hgnc_manager)
 
         logger.info('building models')
-        t = time.time()
-        for (index, mirtarbase_id, mirna_name, mirna_species, gene_name, entrez_id, target_species, exp, sup_type,
-             pubmed) in tqdm(df.itertuples(), total=len(df.index)):
-            # create new miRNA instance
 
+        t = time.time()
+        it = tqdm(df.values, total=len(df.index))
+        for mirtarbase_id, mirna_name, mirna_species, gene_name, entrez_id, target_species, exp, sup_type, pubmed in it:
+            # create new miRNA instance
             entrez_id = str(int(entrez_id))
 
             interaction_key = (mirna_name, entrez_id)
@@ -102,17 +102,15 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
             if interaction is None:
                 mirna = name_mirna.get(mirna_name)
-
                 if mirna is None:
                     species = species_set.get(mirna_species)
-
                     if species is None:
                         species = species_set[mirna_species] = Species(name=mirna_species)
                         self.session.add(species)
 
                     mirna = name_mirna[mirna_name] = Mirna(
                         name=mirna_name,
-                        species=species
+                        species=species,
                     )
                     self.session.add(mirna)
 
