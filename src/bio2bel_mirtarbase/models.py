@@ -2,19 +2,19 @@
 
 """SQLAlchemy models for Bio2BEL miRTarBase."""
 
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Optional
 
-import pybel.dsl
-import pybel.dsl
-from pybel import BELGraph
 from sqlalchemy import Column, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
+import pybel.dsl
+from pybel import BELGraph
 from .constants import MODULE_NAME
 
 NCBIGENE = 'ncbigene'
 MIRBASE = 'mirbase'
+MIRBASE_MATURE = 'mirbase.mature'
 HGNC = 'hgnc'
 
 MIRNA_TABLE_NAME = f'{MODULE_NAME}_mirna'
@@ -62,28 +62,48 @@ class Mirna(Base):
 
     id = Column(Integer, primary_key=True)
 
-    name = Column(String(31), nullable=False, unique=True, index=True, doc="miRTarBase name")
-    mirbase_id = Column(String(255), nullable=True, unique=True, index=True, doc="miRBase identifier")
-    entrez_id = Column(String(255), nullable=True, unique=True, index=True, doc="Entrez Gene identifier")
+    mirbase_mature_name = Column(String(31), nullable=False, unique=True, index=True, doc="mirbase.mature name")
+    mirbase_mature_id = Column(String(255), nullable=True, unique=True, index=True, doc="mirbase.mature identifier")
+    mirbase_name = Column(String(31), nullable=False, unique=True, index=True, doc="mirbase name")
+    mirbase_id = Column(String(255), nullable=True, unique=True, index=True, doc="mirbase identifier")
+
+    # entrez_id = Column(String(255), nullable=True, unique=True, index=True, doc="Entrez Gene identifier")
 
     species_id = Column(Integer, ForeignKey(f'{Species.__tablename__}.id'), nullable=False, doc='The host species')
     species = relationship(Species)
 
-    def as_bel(self) -> pybel.dsl.MicroRna:
+    def as_bel(self, namespace: Optional[str] = None) -> pybel.dsl.MicroRna:
         """Serialize to a PyBEL node data dictionary."""
+        if namespace is None or namespace.lower() == MIRBASE:
+            return self.as_mirbase_bel()
+        elif namespace.lower() == MIRBASE_MATURE:
+            return self.as_mirbase_mature_bel()
+        else:
+            raise ValueError
+
+    def as_mirbase_bel(self) -> pybel.dsl.MicroRna:
+        """Serialize the premature miRNA as BEL."""
         return pybel.dsl.MicroRna(
             namespace=MIRBASE,
-            name=self.name,
+            name=self.mirbase_name,
             identifier=self.mirbase_id,
+        )
+
+    def as_mirbase_mature_bel(self) -> pybel.dsl.MicroRna:
+        """Serialize the mature miRNA as BEL."""
+        return pybel.dsl.MicroRna(
+            namespace=MIRBASE_MATURE,
+            name=self.mirbase_mature_name,
+            identifier=self.mirbase_mature_id,
         )
 
     @staticmethod
     def filter_name_in(names: Iterable[str]):
         """Build a name filter."""
-        return Mirna.name.in_(names)
+        return Mirna.mirbase_mature_name.in_(names)
 
     def __str__(self):  # noqa: D105
-        return self.name
+        return self.mirbase_mature_name
 
 
 class Target(Base):
@@ -95,22 +115,29 @@ class Target(Base):
 
     name = Column(String(63), nullable=False, index=True, doc="Target gene name")
     entrez_id = Column(String(32), nullable=False, unique=True, index=True, doc="Entrez gene identifier")
-
-    hgnc_symbol = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene symbol")
     hgnc_id = Column(String(32), nullable=True, unique=True, index=True, doc="HGNC gene identifier")
 
-    species_id = Column(Integer, ForeignKey(f'{SPECIES_TABLE_NAME}.id'), nullable=False, doc='The host species')
-    species = relationship('Species')
+    species_id = Column(Integer, ForeignKey(f'{Species.__tablename__}.id'), nullable=False, doc='The host species')
+    species = relationship(Species)
 
     def __str__(self):  # noqa: D105
         return self.name
+
+    def as_bel(self, namespace: Optional[str] = None):
+        """Serialize the target to BEL."""
+        if namespace is None or namespace.lower() == NCBIGENE:
+            return self.serialize_to_entrez_node()
+        elif namespace.lower() == HGNC:
+            return self.serialize_to_hgnc_node()
+        else:
+            raise ValueError
 
     def serialize_to_entrez_node(self) -> pybel.dsl.Rna:
         """Serialize to PyBEL node data dictionary."""
         return pybel.dsl.Rna(
             namespace=NCBIGENE,
-            identifier=str(self.entrez_id),
-            name=str(self.name),
+            identifier=self.entrez_id,
+            name=self.name,
         )
 
     def serialize_to_hgnc_node(self) -> pybel.dsl.Rna:
@@ -120,8 +147,8 @@ class Target(Base):
 
         return pybel.dsl.Rna(
             namespace=HGNC,
-            identifier=str(self.hgnc_id),
-            name=str(self.hgnc_symbol)
+            identifier=self.hgnc_id,
+            name=self.name,
         )
 
     def to_json(self, include_id=True) -> Mapping:

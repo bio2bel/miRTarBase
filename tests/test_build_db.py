@@ -2,29 +2,25 @@
 
 """Tests for Bio2BEL miRTarBase."""
 
-from bio2bel_mirtarbase.manager import _build_entrez_map
-from bio2bel_mirtarbase.models import Evidence, HGNC, MIRBASE, Mirna, NCBIGENE, Species, Target
+from bio2bel_mirtarbase.models import Evidence, HGNC, MIRBASE_MATURE, Mirna, NCBIGENE, Species, Target
 from pybel import BELGraph
 from pybel.constants import FUNCTION, IDENTIFIER, NAME, NAMESPACE
-from pybel.dsl import BaseAbundance, mirna, rna
+from pybel.dsl import BaseAbundance, MicroRna, Rna
 from tests.constants import TemporaryFilledCacheMixin
 
 hif1a_symbol = 'HIF1A'
 
-hif1a_hgnc_name = rna(name=hif1a_symbol, namespace=HGNC)
-hif1a_hgnc_identifier = rna(identifier='4910', namespace=HGNC)
-hif1a_entrez_name = rna(name='3091', namespace=NCBIGENE)
-hif1a_entrez_identifier = rna(identifier='3091', namespace=NCBIGENE)
-mi2_data = mirna(name='hsa-miR-20a-5p', namespace=MIRBASE)
-mi5_data = mirna(name='mmu-miR-124-3p', namespace=MIRBASE)
+hif1a_hgnc_name = Rna(name=hif1a_symbol, namespace=HGNC)
+hif1a_hgnc_identifier = Rna(identifier='4910', namespace=HGNC)
+hif1a_entrez_name = Rna(name='3091', namespace=NCBIGENE)
+hif1a_entrez_identifier = Rna(identifier='3091', namespace=NCBIGENE)
+
+mi2_data = MicroRna(name='hsa-miR-20a-5p', namespace=MIRBASE_MATURE)
+mi5_data = MicroRna(name='mmu-miR-124-3p', namespace=MIRBASE_MATURE)
 
 
 class TestBuildDatabase(TemporaryFilledCacheMixin):
     """Test the database."""
-
-    def test_count_human_genes(self):
-        """Test the number of genes in Bio2BEL HGNC."""
-        self.assertEqual(2, self.hgnc_manager.count_human_genes())
 
     def test_count_mirnas(self):
         """Test the number of miRNAs."""
@@ -45,35 +41,6 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
     def test_count_species(self):
         """Test the number of species."""
         self.assertEqual(3, self.manager.session.query(Species).count())
-
-    def test_count_hgnc(self):
-        """Test the number of human genes."""
-        self.assertEqual(2, len(self.hgnc_manager.hgnc()))
-
-    def test_get_cxcr4_by_entrez(self):
-        """Test getting cxcr4 by its Entrez gene identifier."""
-        models = self.hgnc_manager.hgnc(entrez='7852')
-        self.assertEqual(1, len(models))
-        model = models[0]
-        self.assertIsNotNone(model)
-        self.assertEqual('CXCR4', model.symbol)
-        self.assertEqual('7852', model.entrez)
-
-    def test_get_hif1a_by_entrez(self):
-        """Test getting hif1a by its Entrez gene identifier."""
-        models = self.hgnc_manager.hgnc(entrez='3091')
-        self.assertEqual(1, len(models))
-        model = models[0]
-        self.assertIsNotNone(model)
-        self.assertEqual('HIF1A', model.symbol)
-        self.assertEqual('3091', model.entrez)
-
-    def test_build_map(self):
-        """Test building an Entrez map."""
-        emap = _build_entrez_map(self.hgnc_manager)
-        self.assertEqual(2, len(emap))
-        self.assertIn('7852', emap)
-        self.assertIn('3091', emap)
 
     def test_evidence(self):
         """Test the populate function of the database manager."""
@@ -133,8 +100,6 @@ class TestBuildDatabase(TemporaryFilledCacheMixin):
         self.assertEqual('HIF1A', model.name)
         self.assertIsNotNone(model.hgnc_id)
         self.assertEqual('4910', model.hgnc_id)
-        self.assertIsNotNone(model.hgnc_symbol)
-        self.assertEqual('HIF1A', model.hgnc_symbol)
         self.assertIsNotNone(model.entrez_id)
         self.assertEqual('3091', model.entrez_id)
 

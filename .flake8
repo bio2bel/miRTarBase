@@ -22,10 +22,8 @@ ignore = D105,E501
 # flake8-import-order
 application-import-names =
 	bio2bel_mirtarbase
-	bio2bel_mirbase
-	bio2bel_entrez
-	bio2bel_hgnc
 	bio2bel
+	pyobo
 	pybel
 	tests
 import-order-style = pycharm

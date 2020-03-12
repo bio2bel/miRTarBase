@@ -2,27 +2,26 @@
 
 """Manager for Bio2BEL miRTarBase."""
 
+import itertools as itt
 import logging
 import time
 from typing import List, Mapping, Optional
 
+import pandas as pd
 from tqdm import tqdm
 
-import bio2bel_entrez
-import bio2bel_hgnc
-import bio2bel_mirbase
+import pybel.dsl
 from bio2bel import AbstractManager
 from bio2bel.manager.bel_manager import BELManagerMixin
 from bio2bel.manager.flask_manager import FlaskMixin
-from bio2bel_hgnc.models import HumanGene
 from pybel import BELGraph
-from pybel.constants import FUNCTION, IDENTIFIER, MIRNA, NAME, NAMESPACE, RNA
 from .constants import MIRTARBASE_VERSION, MODULE_NAME
 from .models import Base, Evidence, Interaction, Mirna, Species, Target
-from .parser import get_data
+from .parser import get_preprocessed_df
 
 __all__ = [
     'Manager',
+    'get_bel',
 ]
 
 logger = logging.getLogger(__name__)
@@ -30,25 +29,56 @@ logger = logging.getLogger(__name__)
 VALID_ENTREZ_NAMESPACES = {'egid', 'eg', 'entrez', 'ncbigene'}
 
 
-def _build_entrez_map(hgnc_manager: bio2bel_hgnc.Manager) -> Mapping[str, HumanGene]:
-    """Build a mapping from entrez gene identifiers to their database models from :py:mod:`bio2bel_hgnc.models`."""
-    logger.info('getting entrez mapping')
-
-    t = time.time()
-    emap = {
-        model.entrez: model
-        for model in hgnc_manager.hgnc()
-        if model.entrez
-    }
-    logger.info('got entrez mapping in %.2f seconds', time.time() - t)
-    return emap
+def _reverse_dict(d):
+    return {v: k for k, v in d.items()}
 
 
-def _get_name(data):
-    if NAME in data:
-        return data[NAME]
-    elif IDENTIFIER in data:
-        return data[IDENTIFIER]
+def get_bel() -> BELGraph:
+    """Serialize miRTarBase as BEL."""
+    graph = BELGraph(
+        name='miRTarBase',
+        version=MIRTARBASE_VERSION,
+    )
+    df = get_preprocessed_df()
+
+    it = df[[
+        'mirbase_id', 'mirbase_name', 'mirbase_mature_id', 'mirna_name',
+        'target_entrez_id', 'target_name', 'pubmed_id', 'support_type', 'experiments',
+    ]]
+
+    for (
+        mirbase_id, mirbase_name, mirbase_mature_id, mirbase_mature_name,
+        target_entrez_id, target_name, pubmed_id, support, experiments
+    ) in tqdm(it.values, total=len(df.index), desc='converting miRTarBase'):
+        if any(pd.isna(x) for x in [mirbase_id, mirbase_mature_id]):
+            continue
+        premature_mirna = pybel.dsl.MicroRna(
+            namespace='mirbase',
+            identifier=mirbase_id,
+            name=mirbase_name,
+        )
+        mature_mirna = pybel.dsl.MicroRna(
+            namespace='mirbase.mature',
+            identifier=mirbase_mature_id,
+            name=mirbase_mature_name,
+        )
+        target = pybel.dsl.Rna(
+            namespace='ncbigene',
+            identifier=target_entrez_id,
+            name=target_name,
+        )
+        graph.add_is_a(mature_mirna, premature_mirna)
+        graph.add_directly_decreases(
+            mature_mirna, target,
+            citation=pubmed_id,
+            evidence='From miRTarBase',
+            annotations={
+                'experiments': set(experiments.split('//')),
+                'support': support,
+            },
+        )
+
+    return graph
 
 
 class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
@@ -63,94 +93,77 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         """Check if the database is already populated."""
         return 0 < self.count_mirnas()
 
-    def populate(self, source: Optional[str] = None, update: bool = False) -> None:
+    def populate(self, source: Optional[str] = None) -> None:
         """Populate database with the data from miRTarBase.
 
         :param source: path or link to data source needed for :func:`get_data`
-        :param update: Should HGNC an miRBase be updated?
         """
-        hgnc_manager = bio2bel_hgnc.Manager(connection=self.connection)
-        if not hgnc_manager.is_populated() or update:
-            hgnc_manager.populate()
-
-        mirbase_manager = bio2bel_mirbase.Manager(connection=self.connection)
-        if not mirbase_manager.is_populated() or update:
-            mirbase_manager.populate()
-
         t = time.time()
         logger.info('getting data')
-        df = get_data(source)
+        df = get_preprocessed_df()
         logger.info('got data in %.2f seconds', time.time() - t)
 
-        name_mirna = {}
-        target_set = {}
-        species_set = {}
-        interaction_set = {}
+        # Make species
+        taxonomy_id_to_species = {}
+        it = set(map(tuple, itt.chain(
+            df[['mirna_species_taxonomy_id', 'mirna_species_name']].drop_duplicates().values,
+            df[['target_species_taxonomy_id', 'target_species_name']].drop_duplicates().values
+        )))
+        it = tqdm(it, desc='serializing species')
+        for taxonomy_id, name in it:
+            species = taxonomy_id_to_species[taxonomy_id] = Species(name=name, taxonomy_id=taxonomy_id)
+            self.session.add(species)
 
-        emap = _build_entrez_map(hgnc_manager)
+        # Make mirna mapping
+        mirbase_mature_id_to_mirna = {}
+        it = df[[
+            'mirbase_mature_id', 'mirna_name', 'mirbase_id', 'mirbase_name', 'mirna_species_taxonomy_id',
+        ]].drop_duplicates()
+        it = tqdm(it.values, total=len(it.index), desc='serializing micro-rnas')
+        for mirbase_mature_id, mirbase_mature_name, mirbase_id, mirbase_name, taxonomy_id in it:
+            mirna = mirbase_mature_id_to_mirna[mirbase_mature_id] = Mirna(
+                mirbase_mature_name=mirbase_mature_name,
+                mirbase_mature_id=mirbase_mature_id,
+                mirbase_name=mirbase_name,
+                mirbase_id=mirbase_id,
+                species=taxonomy_id_to_species[taxonomy_id],
+            )
+            self.session.add(mirna)
 
-        logger.info('building models')
+        # make target mapping
+        entrez_id_to_target = {}
+        it = df[['target_entrez_id', 'target_name', 'target_species_taxonomy_id']].drop_duplicates()
+        it = tqdm(it.values, total=len(it.index), desc='serializing targets')
+        for entrez_id, name, taxonomy_id in it:
+            target = entrez_id_to_target[entrez_id] = Target(
+                entrez_id=entrez_id,
+                name=name,
+                species=taxonomy_id_to_species[taxonomy_id],
+            )
+            self.session.add(target)
+
+        mirtarbase_id_to_interaction = {}
+        it = df[['mirtarbase_id', 'mirbase_mature_id', 'target_entrez_id']].drop_duplicates()
+        it = tqdm(it.values, total=len(it.index), desc='serializing interactions')
+        for mirtarbase_id, mirbase_mature_id, entrez_id in it:
+            interaction = mirtarbase_id_to_interaction[mirtarbase_id] = Interaction(
+                mirtarbase_id=mirtarbase_id,
+                mirna=mirbase_mature_id_to_mirna[mirbase_mature_id],
+                target=entrez_id_to_target[entrez_id],
+            )
+            self.session.add(interaction)
 
         t = time.time()
-        it = tqdm(df.values, total=len(df.index))
-        for mirtarbase_id, mirna_name, mirna_species, gene_name, entrez_id, target_species, exp, sup_type, pubmed in it:
-            # create new miRNA instance
-            entrez_id = str(int(entrez_id))
-
-            interaction_key = (mirna_name, entrez_id)
-            interaction = interaction_set.get(interaction_key)
-
-            if interaction is None:
-                mirna = name_mirna.get(mirna_name)
-                if mirna is None:
-                    species = species_set.get(mirna_species)
-                    if species is None:
-                        species = species_set[mirna_species] = Species(name=mirna_species)
-                        self.session.add(species)
-
-                    mirna = name_mirna[mirna_name] = Mirna(
-                        name=mirna_name,
-                        species=species,
-                    )
-                    self.session.add(mirna)
-
-                target = target_set.get(entrez_id)
-                if target is None:
-                    species = species_set.get(target_species)
-
-                    if species is None:
-                        species = species_set[target_species] = Species(name=target_species)
-                        self.session.add(species)
-
-                    target = target_set[entrez_id] = Target(
-                        entrez_id=entrez_id,
-                        species=species,
-                        name=gene_name,
-                    )
-
-                    if entrez_id in emap:
-                        g_first = emap[entrez_id]
-                        target.hgnc_symbol = g_first.symbol
-                        target.hgnc_id = str(g_first.identifier)
-
-                    self.session.add(target)
-
-                # create new interaction instance
-                interaction = interaction_set[interaction_key] = Interaction(
-                    mirtarbase_id=mirtarbase_id,
-                    mirna=mirna,
-                    target=target
-                )
-                self.session.add(interaction)
-
-            # create new evidence instance
-            new_evidence = Evidence(
-                experiment=exp,
-                support=sup_type,
-                reference=pubmed,
-                interaction=interaction,
+        it = df[['mirtarbase_id', 'experiments', 'support_type', 'pubmed_id']]
+        it = tqdm(it.values, total=len(it.index), desc='serializing evidences')
+        for mirtarbase_id, experiment, support, pubmed_id in it:
+            evidence = Evidence(
+                experiment=experiment,
+                support=support,
+                reference=pubmed_id,
+                interaction=mirtarbase_id_to_interaction[mirtarbase_id],
             )
-            self.session.add(new_evidence)
+            self.session.add(evidence)
 
         logger.info('built models in %.2f seconds', time.time() - t)
 
@@ -264,15 +277,14 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         count = 0
 
         for node in list(graph):
-            if node[FUNCTION] != RNA:
+            if not isinstance(node, pybel.dsl.Rna):
                 continue
-
-            namespace = node.get(NAMESPACE)
+            namespace = node.namespace
             if namespace is None:
                 continue
 
-            identifier = node.get(IDENTIFIER)
-            name = node.get(NAME)
+            identifier = node.identifier
+            name = node.name
 
             if namespace.lower() == 'hgnc':
                 target = self._enrich_rna_handle_hgnc(identifier, name)
@@ -283,7 +295,7 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
                 continue
 
             if target is None:
-                logger.warning("Unable to find RNA: %s:%s", namespace, _get_name(node))
+                logger.warning("Unable to find RNA: %s:%s", namespace, node)
                 continue
 
             for interaction in target.interactions:
@@ -301,14 +313,16 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
         mirtarbase_names = set()
 
         for node in graph:
-            if node[FUNCTION] != MIRNA or NAMESPACE not in node:
+            if not isinstance(node, pybel.dsl.MicroRna):
                 continue
 
-            namespace = node[NAMESPACE]
+            namespace = node.namespace
+            name = node.name
+            # identifier = node.identifier
 
             if namespace.lower() == 'mirtarbase':
-                if NAME in node:
-                    mirtarbase_names.add(node[NAME])
+                if name is not None:
+                    mirtarbase_names.add(name)
                 raise IndexError('no usable identifier for {}'.format(node))
 
             elif namespace.lower() in {'mirbase', 'hgnc'} | VALID_ENTREZ_NAMESPACES:
@@ -336,23 +350,4 @@ class Manager(AbstractManager, BELManagerMixin, FlaskMixin):
 
     def to_bel(self) -> BELGraph:
         """Serialize miRNA-target interactions to BEL."""
-        graph = BELGraph(
-            name='miRTarBase',
-            version=MIRTARBASE_VERSION,
-        )
-        graph.namespace_pattern.update(dict(
-            hgnc=bio2bel_hgnc.Manager.identifiers_pattern,
-            entrez=bio2bel_entrez.Manager.identifiers_pattern,
-            mirbase=bio2bel_mirbase.Manager.identifiers_pattern,
-        ))
-
-        # TODO check if entrez has all species uploaded and optionally populate remaining species
-        it = tqdm(
-            self.get_mirna_interaction_evidences(),
-            total=self.count_evidences(),
-            desc='Mapping miRNA-target interactions to BEL',
-        )
-        for evidence in it:
-            evidence.add_to_graph(graph)
-
-        return graph
+        return get_bel()

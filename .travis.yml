@@ -3,7 +3,7 @@ cache: pip
 
 language: python
 python:
-- 3.6
+  - 3.7
 
 stages:
   - lint
@@ -17,7 +17,6 @@ jobs:
       env: TOXENV=manifest
     - env: TOXENV=flake8
     - env: TOXENV=pyroma
-    - env: TOXENV=xenon
     # docs stage
     - stage: docs
       env: TOXENV=doc8
@@ -27,18 +26,14 @@ jobs:
     - stage: test
       env: TOXENV=py
 
-matrix:
-  allow_failures:
-      - env: TOXENV=xenon
-
 install:
-    - sh -c 'if [ "$TOXENV" = "py" ]; then pip install tox codecov; else pip install tox; fi'
+  - sh -c 'if [ "$TOXENV" = "py" ]; then pip install tox codecov; else pip install tox; fi'
 
 script:
-- tox
+  - tox
 
 after_success:
-    - sh -c 'if [ "$TOXENV" = "py" ]; then tox -e coverage-report; codecov; fi'
+  - sh -c 'if [ "$TOXENV" = "py" ]; then tox -e coverage-report; codecov; fi'
 
 notifications:
   slack: pybel:n2KbWKBum3musnBg3L76gGwq

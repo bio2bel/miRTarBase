@@ -2,44 +2,79 @@
 
 """Parsers for miRTarBase resources."""
 
-import logging
-import os
-from typing import Optional
-from urllib.request import urlretrieve
-
 import pandas as pd
+from bio2bel.downloading import make_downloader
 
-from .constants import DATA_FILE_PATH, DATA_URL
+from pyobo import get_id_name_mapping, get_name_id_mapping, get_xrefs
+from pyobo.cache_utils import cached_df
+from pyobo.sources.mirbase import get_mature_id_to_name, get_mature_to_premature
+from .constants import MIRTARBASE_DATA_URL, MIRTARBASE_PROCESSED_DATA_PATH, MIRTARBASE_RAW_DATA_PATH
 
-log = logging.getLogger(__name__)
+__all__ = [
+    'mirtarbase_data_downloader',
+    'get_mirtarbase_df',
+    'get_preprocessed_df',
+]
+
+mirtarbase_data_downloader = make_downloader(MIRTARBASE_DATA_URL, MIRTARBASE_RAW_DATA_PATH)
+
+COLUMNS = [
+    'mirtarbase_id',
+    'mirna_name',
+    'mirna_species_name',
+    'target_name',
+    'target_entrez_id',
+    'target_species_name',
+    'experiments',
+    'support_type',
+    'pubmed_id',
+]
 
 
-def download_data(force_download: bool = False):
-    """Download the miRTarBase Excel sheet to a local path.
-
-    :param force_download: If true, don't download the file again if it already exists
-    """
-    if not os.path.exists(DATA_FILE_PATH) or force_download:
-        log.info('downloading %s to %s', DATA_URL, DATA_FILE_PATH)
-        urlretrieve(DATA_URL, DATA_FILE_PATH)
-    else:
-        log.info('using cached data at %s', DATA_FILE_PATH)
-
-    return DATA_FILE_PATH
+def _reverse_dict(d):
+    return {v: k for k, v in d.items()}
 
 
-def get_data(url: Optional[str] = None, cache: bool = True, force_download: bool = False) -> pd.DataFrame:
-    """Get miRTarBase Interactions table and exclude rows with NULL values.
+@cached_df(path=MIRTARBASE_PROCESSED_DATA_PATH, dtype={
+    'mirna_species_taxonomy_id': str,
+    'target_species_taxonomy_id': str,
+    'target_entrez_id': str,
+    'target_hgnc_id': str,
+    'pubmed_id': str,
+})
+def get_preprocessed_df() -> pd.DataFrame:
+    """Get a preprocessed dataframe."""
+    df = get_mirtarbase_df()
 
-    :param url: location that goes into :func:`pandas.read_excel`. Defaults to :data:`DATA_URL`.
-    :param cache: If true, the data is downloaded to the file system, else it is loaded from the internet
-    :param force_download: If true, overwrites a previously cached file
-    """
-    if url is None and cache:
-        url = download_data(force_download=force_download)
+    hgnc_id_to_entrez_id = get_xrefs('hgnc', 'entrez')
+    entrez_id_to_hgnc_id = _reverse_dict(hgnc_id_to_entrez_id)
+    mirbase_id_to_name = get_id_name_mapping('mirbase')
+    mirbase_mature_id_to_name = get_mature_id_to_name()
+    mirbase_mature_name_to_id = _reverse_dict(mirbase_mature_id_to_name)
+    mirbase_mature_id_to_premature_id = get_mature_to_premature()
+    taxonomy_name_to_id = get_name_id_mapping('ncbitaxon')
 
-    df = pd.read_excel(url or DATA_URL)
+    df['target_hgnc_id'] = df['target_entrez_id'].map(entrez_id_to_hgnc_id.get)
 
+    df['mirbase_mature_id'] = df['mirna_name'].map(mirbase_mature_name_to_id.get)
+    df['mirbase_id'] = df['mirbase_mature_id'].map(mirbase_mature_id_to_premature_id.get)
+    df['mirbase_name'] = df['mirbase_id'].map(mirbase_id_to_name.get)
+
+    df['mirna_species_taxonomy_id'] = df['mirna_species_name'].map(taxonomy_name_to_id.get)
+    df['target_species_taxonomy_id'] = df['target_species_name'].map(taxonomy_name_to_id.get)
+
+    return df
+
+
+def get_mirtarbase_df() -> pd.DataFrame:
+    """Get miRTarBase Interactions table and exclude rows with NULL values."""
+    path = mirtarbase_data_downloader()
+
+    df = pd.read_excel(path, names=COLUMNS, dtype={
+        'Target Gene (Entrez Gene ID)': str,
+        'References (PMID)': str,
+    })
     # find null rows
-    null_rows = pd.isnull(df).any(1).nonzero()[0]
-    return df.drop(null_rows)
+    # null_rows = pd.isnull(df).any(1).nonzero()[0]
+    # df= df.drop(null_rows)
+    return df
